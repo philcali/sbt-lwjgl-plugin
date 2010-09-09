@@ -12,7 +12,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
     
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "calico" % "sbt-lwjgl-plugin" % "1.0" at "http://github.com/downloads/philcali/scalnes/sbt-lwjgl-plugin-1.0.jar"
+      val lwjglPlugin = "calico" % "sbt-lwjgl-plugin" % "1.0" at "http://github.com/downloads/philcali/sbt-lwjgl-plugin/sbt-lwjgl-plugin-1.0.jar"
     }
 
 How it works
