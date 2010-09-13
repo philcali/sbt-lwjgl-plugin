@@ -28,5 +28,9 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
  */
 trait Slick2D extends LWJGLProject {
   val slickRepo = "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo"
+
+  // Mainly for slick stuff
+  val b2srepo = "Personal Repo" at "http://b2s-repo.googlecode.com/svn/trunk/mvn-repo"
+
   val slick = "slick" % "slick" % "274"
 }
