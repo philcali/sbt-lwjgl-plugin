@@ -12,7 +12,8 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
     
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "scan" % "sbt-lwjgl-plugin" % "0.3" from "http://github.com/scan/sbt-lwjgl-plugin/downloads/sbt-lwjgl-plugin-0.3.jar"
+        val sbtLwjglRepo = "sbt-lwjgl-repo" at "http://scan.github.com/maven"
+        val sbtLwjglPlugin = "com.github.scan" % "sbt-lwjgl-plugin" % "0.3.0"
     }
 
 How it works
@@ -30,10 +31,6 @@ Here's an example project definition:
     import sbt._
   
     class ExampleProject(info: ProjectInfo) extends LWJGLProject(info) with Slick2D {
-      // If you choose to overwrite the native LWJGL path, you can do so here.
-      // An example of this would be if you defined the path as a separate env variable
-      // Note: this override is optional
-      override def nativeLWJGLPath = System.getProperty("different.path")
     }
 
 [Slick]: http://slick.cokeandcode.com/index.php
