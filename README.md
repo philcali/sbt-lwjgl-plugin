@@ -12,14 +12,13 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
     
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "calico" % "sbt-lwjgl-plugin" % "1.0" from "http://github.com/downloads/philcali/sbt-lwjgl-plugin/sbt-lwjgl-plugin-1.0.jar"
+      val lwjglPlugin = "scan" % "sbt-lwjgl-plugin" % "0.3" from "http://github.com/scan/sbt-lwjgl-plugin/downloads/sbt-lwjgl-plugin-0.3.jar"
     }
 
 How it works
 ---
 
-The plugin simply looks for lwjgl in your lib directory of your project. If you already have lwjgl native libraries defined in your JAVA_LIBRARY_PATH,
-then you're golden.
+The plugin adds the necessary dependencies for LWJGL to your project. On `run`, the downloaded natives are extracted to the lib directory, the `java.library.path` is set correctly.
 
 The plugin comes with a Slick2D trait for [Slick] dependencies.
 
