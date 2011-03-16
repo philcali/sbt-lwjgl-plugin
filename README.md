@@ -18,8 +18,9 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
 How it works
 ---
 
-The plugin makes use of public [maven repo] found at the LWJGL wiki. It pulls the dependencies, and extracts to your
-lib directory.
+The plugin makes use of public [maven repo] found at the LWJGL wiki. It pulls the dependencies, and extracts lwjgl 
+jar to your working lib directory.
+
 
 The plugin comes with a Slick2D trait for [Slick] dependencies.
 
