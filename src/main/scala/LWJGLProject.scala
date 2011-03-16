@@ -1,26 +1,34 @@
 import sbt._
 
 abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
-  def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
-    case "lin" => ("linux", ":")
-    case "mac" => ("macosx", ":")
-    case "win" => ("windows", ";")
-    case "sun" => ("solaris", ":")
-    case _ => ("unknown", "")  
-  }
+	def lwjglVersion = "2.6"
 
-  def nativeLWJGLPath = {
-    val (libpath, separator) = defineOs._1 match {
-      case "unknown" => ("", "")
-      case _ => (path("lib") / "lwjgl" / "native" / defineOs._1, defineOs._2)
-    }
+	lazy val lwjglRepo = "lwjgl" at "http://adterrasperaspera.com/lwjgl"
 
-    System.getProperty("java.library.path") + separator + libpath
-  }
+	lazy val lwjgl = "org.lwjgl" % "lwjgl" % lwjglVersion
+	lazy val lwjglUtil = "org.lwjgl" % "lwjgl-util" % lwjglVersion
 
-  override def fork = {
-    forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
-  }
+	def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
+		case "lin" => ("linux", ":")
+		case "mac" => ("macosx", ":")
+		case "win" => ("windows", ";")
+		case "sun" => ("solaris", ":")
+		case _ => ("unknown", "")
+	}
+
+	def nativeLWJGLPath = {
+		val (libpath, separator) = defineOs._1 match {
+		case "unknown" => ("", "")
+		case _ => (path("lib") / ("lwjgl-native-" + lwjglVersion) / defineOs._1, defineOs._2)
+		}
+
+		System.getProperty("java.library.path") + separator + libpath
+	}
+
+	override def fork = {
+		JarExtractor((managedDependencyPath / "compile" / ("lwjgl-native-" + lwjglVersion + ".jar")).toString, dependencyPath.toString)
+		forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
+	}
 }
 
 /**
