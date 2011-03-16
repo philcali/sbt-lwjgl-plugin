@@ -13,7 +13,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
         val sbtLwjglRepo = "sbt-lwjgl-repo" at "http://scan.github.com/maven"
-        val sbtLwjglPlugin = "com.github.scan" % "sbt-lwjgl-plugin" % "0.3.0"
+        val sbtLwjglPlugin = "com.github.scan" % "sbt-lwjgl-plugin" % "0.3.1"
     }
 
 How it works
