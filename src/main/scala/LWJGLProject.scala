@@ -51,13 +51,15 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 
 // Slick works a tad differently
 trait Slick2D extends LWJGLProject {
+  def slickVersion = "274"
+
 	val slickRepo = "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo"
 
 	// Mainly for slick stuff
 	val b2srepo = "b2srepo" at "http://b2s-repo.googlecode.com/svn/trunk/mvn-repo"
 	val freeheprepo = "Freehep" at "http://java.freehep.org/maven2"
 
-	val slick = "slick" % "slick" % "274"
+	val slick = "slick" % "slick" % slickVersion 
 
 	override def updateAction = {
 		patchFile
