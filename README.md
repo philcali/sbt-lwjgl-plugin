@@ -1,6 +1,6 @@
 # sbt-lwjgl-plugin
 
-This is a simple plugin for sbt specifically for LWJGL projects. The idea was taken from this post by Death by Misadventure.
+This is a simple plugin for sbt specifically for [LWJGL] projects. The idea was taken from this post by [Death by Misadventure].
 
 Please visit the [wiki] for more info, roadmap, etc.
 
@@ -18,7 +18,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
 
 The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the dependencies, and extracts lwjgl jar to your working lib directory.
 
-The plugin comes with a Slick2D trait for Slick dependencies.
+The plugin comes with a [Slick2D] trait for Slick dependencies.
 
 Note for Slick Devs: You may have to run update twice. The second time will patch an ivy dependency xml to pull the correct phys2d jar.
 
@@ -31,6 +31,7 @@ Here's an example project definition:
     class ExampleProject(info: ProjectInfo) extends LWJGLProject(info) with Slick2D {
     }
 
+[Slick2D]: http://slick.cokeandcode.com/
 [wiki]: https://github.com/philcali/sbt-lwjgl-plugin/wiki/sbt-lwjgl-plugin
 [Death by Misadventure]: http://blog.misadventuregames.com/post/248744147/scala-and-lwjgl-with-sbt-updated
 [LWJGL]: http://lwjgl.org/
