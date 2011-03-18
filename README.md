@@ -14,6 +14,12 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
       val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.2"
     }
 
+**Or**, you can make use of the giter8 template, to kick off your project.
+
+    g8 philcali/lwjgl.g8
+
+Once you answer all the appropriate questions, you will have a lwjgl project in awaiting.
+
 ## How it works
 
 The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the dependencies, and extracts lwjgl jar to your working lib directory.
