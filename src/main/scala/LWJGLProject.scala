@@ -69,9 +69,12 @@ import dispatch._
 import Http._
 import java.io.FileOutputStream
 trait JMonkey extends LWJGLProject {
+  // Giving the ability for users to override
+  // the base version and targeted nightly build
   def jmonkeyBaseVersion = "jME3"
   def targetedVersion = dateString(today)
-  lazy val baseRepo = "http://jmonkeyengine.com/nightly/" 
+  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
+  lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
 
   // Plugins are compiled in scala 2.7.7...
   def today = new java.util.Date()
@@ -80,21 +83,26 @@ trait JMonkey extends LWJGLProject {
     sdf.format(when)
   }
 
+  // Bulk of the work, any exception here can
+  // bubble up to the updateAction
   def pullLib = {
-    log.info("Pulling new version of jMonkey")
-    log.warn("This may take a few minutes...")
-    val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
-    val zip = "%s.zip" format(jname) 
-    val dest = dependencyPath / jname
-    
-    // Comencing work...
-    Http("%s/%s".format(baseRepo, zip) >>> new FileOutputStream(zip))
-    // Extract the lib dir...
-    val filter = new ExactFilter("lib") 
-    val zipFile = new java.io.File(zip)
-    FileUtilities.unzip(zipFile, dest, filter, log)
-    // Destroy zip
-    zipFile.delete
+    dependencyPath / jname exists match {
+      case true => log.info("Already have targeted jMonkey Version")
+      case false =>
+        log.info("Pulling new version of jMonkey")
+        log.warn("This may take a few minutes...")
+        val zip = "%s.zip" format(jname) 
+        val dest = dependencyPath / jname
+        
+        // Comencing work...
+        Http("%s/%s".format(baseRepo, zip) >>> new FileOutputStream(zip))
+        // Extract the lib dir only...
+        val zipFile = new java.io.File(zip)
+        FileUtilities.unzip(zipFile, dest, log)
+        // Destroy the zip
+        zipFile.delete
+        log.info("Complete")
+    }
   }
 
   override def updateAction = { pullLib; super.updateAction }
