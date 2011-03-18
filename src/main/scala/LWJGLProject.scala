@@ -31,21 +31,32 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		System.getProperty("java.library.path") + separator + libpath
 	}
 
-	override def fork = {
+	override def copyResourcesAction = super.copyResourcesAction dependsOn copyLwjgl
+
+	lazy val copyLwjgl = task {
 		try {
+			log.info("Copying files for %s" format(defineOs._1))
 			if(nativeLibPath.exists) {
 				log.info("Skipping because of existence: %s" format(nativeLibPath))
 			} else {
 				val filter = new PatternFilter(Pattern.compile(defineOs._1 + "/.*" + defineOs._3))
 				FileUtilities.unzip(managedDependencyPath / "compile" / "%s.jar".format(lwjglPath), nativeLibPath, filter, log)
 			}
-			forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
+			None
 		} catch {
 			case e: FileNotFoundException => {
-				log.error("%s not found, try sbt update.".format(lwjglPath))
-				None
+				Some("%s not found, try sbt update.".format(lwjglPath))
 			}
 		}
+	} describedAs "Copy all LWJGL natives to the right position."
+
+	lazy val cleanLwjgl = task {
+		FileUtilities.clean(nativeLibPath, log)
+		None
+	}
+
+	override def fork = {
+		forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
 	}
 }
 
