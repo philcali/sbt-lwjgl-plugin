@@ -96,9 +96,10 @@ trait JMonkey extends LWJGLProject {
         
         // Comencing work...
         Http("%s/%s".format(baseRepo, zip) >>> new FileOutputStream(zip))
-        // Extract the lib dir only...
         val zipFile = new java.io.File(zip)
-        FileUtilities.unzip(zipFile, dest, log)
+        // Extract the lib dir only...
+        val filter = new PatternFilter(Pattern.compile(".*jar"))
+        FileUtilities.unzip(zipFile, dest, filter, log)
         // Destroy the zip
         zipFile.delete
         log.info("Complete")
