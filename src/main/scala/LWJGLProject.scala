@@ -60,6 +60,55 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 	}
 }
 
+/**
+ * JMonkey, unfortunately, does not have a public maven repo
+ * We are going to hack the dependency by pulling down their
+ * nightly builds and extracting the dependecies we need.
+ */
+import dispatch._
+import Http._
+import java.io.FileOutputStream
+trait JMonkey extends LWJGLProject {
+  // Giving the ability for users to override
+  // the base version and targeted nightly build
+  def jmonkeyBaseVersion = "jME3"
+  def targetedVersion = dateString(today)
+  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
+  lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
+
+  // Plugins are compiled in scala 2.7.7...
+  def today = new java.util.Date()
+  def dateString(when: java.util.Date) = {
+    val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
+    sdf.format(when)
+  }
+
+  // Bulk of the work, any exception here can
+  // bubble up to the updateAction
+  def pullLib = {
+    dependencyPath / jname exists match {
+      case true => log.info("Already have targeted jMonkey Version")
+      case false =>
+        log.info("Pulling new version of jMonkey")
+        log.warn("This may take a few minutes...")
+        val zip = "%s.zip" format(jname) 
+        val dest = dependencyPath / jname
+        
+        // Comencing work...
+        Http("%s/%s".format(baseRepo, zip) >>> new FileOutputStream(zip))
+        val zipFile = new java.io.File(zip)
+        // Extract the lib dir only...
+        val filter = new PatternFilter(Pattern.compile(".*jar"))
+        FileUtilities.unzip(zipFile, dest, filter, log)
+        // Destroy the zip
+        zipFile.delete
+        log.info("Complete")
+    }
+  }
+
+  override def updateAction = { pullLib; super.updateAction }
+}
+
 // Slick works a tad differently
 trait Slick2D extends LWJGLProject {
   def slickVersion = "274"
