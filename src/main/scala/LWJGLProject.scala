@@ -3,16 +3,7 @@ import java.util.regex.Pattern
 import java.io.FileNotFoundException
 import scala.io.Source
 
-abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) { 
-	def lwjglVersion = "2.7.1"
-
-	lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
-
-	lazy val lwjgl = "org.lwjgl" % "lwjgl" % lwjglVersion
-	lazy val lwjglUtils = "org.lwjgl" % "lwjgl-util" % lwjglVersion
-	lazy val lwjglPath = "lwjgl-native-%s" format(lwjglVersion)
-
-	private lazy val nativeLibPath = dependencyPath / lwjglPath
+trait LWJGLForkRun extends DefaultProject {
 
 	private lazy val defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
 		case "lin" => ("linux", ":", "so")
@@ -22,16 +13,8 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		case _ => ("unknown", "", "")
 	}
 
-	def nativeLWJGLPath = {
-		val (libpath, separator) = defineOs._1 match {
-		case "unknown" => ("", "")
-		case _ => (nativeLibPath / defineOs._1, defineOs._2)
-		}
-
-		System.getProperty("java.library.path") + separator + libpath
-	}
-
-	override def copyResourcesAction = super.copyResourcesAction dependsOn copyLwjgl
+  // Extracts LWJGL native jar to this location
+	private lazy val nativeLibPath = dependencyPath / lwjglJar
 
 	lazy val copyLwjgl = task {
 		try {
@@ -40,12 +23,12 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 				log.info("Skipping because of existence: %s" format(nativeLibPath))
 			} else {
 				val filter = new PatternFilter(Pattern.compile(defineOs._1 + "/.*" + defineOs._3))
-				FileUtilities.unzip(managedDependencyPath / "compile" / "%s.jar".format(lwjglPath), nativeLibPath, filter, log)
+				FileUtilities.unzip(managedDependencyPath / "compile" / "%s.jar".format(lwjglJar), nativeLibPath, filter, log)
 			}
 			None
 		} catch {
 			case e: FileNotFoundException => {
-				Some("%s not found, try sbt update.".format(lwjglPath))
+				Some("%s not found, try sbt update.".format(lwjglJar))
 			}
 		}
 	} describedAs "Copy all LWJGL natives to the right position."
@@ -55,9 +38,34 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		None
 	}
 
+  // Children must override this definition in order
+  // for the ForkRun trait to be effective
+  def lwjglJar: String
+
+	override def copyResourcesAction = super.copyResourcesAction dependsOn copyLwjgl
+
+	def nativeLWJGLPath = {
+		val (libpath, separator) = defineOs._1 match {
+		case "unknown" => ("", "")
+		case _ => (nativeLibPath / defineOs._1, defineOs._2)
+		}
+
+		System.getProperty("java.library.path") + separator + libpath
+	}
 	override def fork = {
 		forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
 	}
+}
+
+abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) with LWJGLForkRun { 
+	lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
+
+	lazy val lwjgl = "org.lwjgl" % "lwjgl" % lwjglVersion
+	lazy val lwjglUtils = "org.lwjgl" % "lwjgl-util" % lwjglVersion
+ 
+  // Force override for ForkRun trait 
+	def lwjglJar = "lwjgl-native-%s" format(lwjglVersion)
+	def lwjglVersion = "2.7.1"
 }
 
 /**
@@ -68,13 +76,18 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 import dispatch._
 import Http._
 import java.io.FileOutputStream
-trait JMonkey extends LWJGLProject {
+
+abstract class JMonkeyProject(info: ProjectInfo) extends DefaultProject(info) with LWJGLForkRun {
+  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
+  lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
+
+  // This is the jar with teh goods
+  def lwjglJar = "%s-lwjgl-natives" format(jmonkeyBaseVersion)
+
   // Giving the ability for users to override
   // the base version and targeted nightly build
   def jmonkeyBaseVersion = "jME3"
   def targetedVersion = dateString(today)
-  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
-  lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
 
   // Plugins are compiled in scala 2.7.7...
   def today = new java.util.Date()
@@ -110,9 +123,7 @@ trait JMonkey extends LWJGLProject {
 }
 
 // Slick works a tad differently
-trait Slick2D extends LWJGLProject {
-  def slickVersion = "274"
-
+abstract class Slick2D(info: ProjectInfo) extends DefaultProject(info) with LWJGLForkRun {
 	val slickRepo = "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo"
 
 	// Mainly for slick stuff
@@ -120,6 +131,11 @@ trait Slick2D extends LWJGLProject {
 	val freeheprepo = "Freehep" at "http://java.freehep.org/maven2"
 
 	val slick = "slick" % "slick" % slickVersion 
+
+  // Override this for newer version
+  def slickVersion = "274"
+
+  def lwjglJar = "lwjgl-native-2.6"
 
 	override def updateAction = {
 		patchFile
