@@ -11,7 +11,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
 
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.2"
+      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.4"
     }
 
 **Or**, you can make use of the giter8 template, to kick off your project.
@@ -26,7 +26,7 @@ The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the 
 
 The plugin comes with a [Slick2D] trait for Slick dependencies.
 
-Note for Slick Devs: You may have to run update twice. The second time will patch an ivy dependency xml to pull the correct phys2d jar.
+**Note for Slick Devs**: You may have to run update twice. The second time will patch an ivy dependency xml to pull the correct phys2d jar.
 
 ## Example Project Definition
 
