@@ -13,7 +13,7 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
  
 	private lazy val defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
 		case "lin" => ("linux", ":", "so")
-		case "mac" => ("macosx", ":", "lib")
+		case "mac" | "dar" => ("macosx", ":", "lib")
 		case "win" => ("windows", ";", "dll")
 		case "sun" => ("solaris", ":", "so")
 		case _ => ("unknown", "", "")
