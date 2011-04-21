@@ -11,7 +11,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
 
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.4"
+      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.5"
     }
 
 **Or**, you can make use of the giter8 template, to kick off your project.
@@ -34,8 +34,10 @@ Here's an example project definition:
 
     import sbt._
 
-    class ExampleProject(info: ProjectInfo) extends LWJGLProject(info) with Slick2D {
-    }
+    // Plain LWJGL Project
+    class ExampleProject(info: ProjectInfo) extends LWJGLProject(info)
+
+See the [wiki] for more detail about satellite project definition (ie: Slick2d, jMonkey)
 
 [Slick2D]: http://slick.cokeandcode.com/
 [wiki]: https://github.com/philcali/sbt-lwjgl-plugin/wiki/sbt-lwjgl-plugin
