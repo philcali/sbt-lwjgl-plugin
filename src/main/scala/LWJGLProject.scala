@@ -44,21 +44,20 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		None
 	}
 
-  // Children must override this definition in order
-  // for the ForkRun trait to be effective
 	def lwjglJar = "lwjgl-native-%s" format(lwjglVersion)
 	def lwjglVersion = "2.7.1"
 
 	override def copyResourcesAction = super.copyResourcesAction dependsOn copyLwjgl
 
-	def nativeLWJGLPath = {
-		val (libpath, separator) = defineOs._1 match {
-		case "unknown" => ("", "")
-		case _ => (nativeLibPath / defineOs._1, defineOs._2)
-		}
-
-		System.getProperty("java.library.path") + separator + libpath
+  // Removing the java.library.path addition, as
+  // this could only cause the double loading
+  // error... Will revisit this if this implementation
+  // becomes a problem (though I don't see how it could).
+	def nativeLWJGLPath = defineOs._1 match {
+		case "unknown" => ""
+		case _ => nativeLibPath / defineOs._1
 	}
+        
 	override def fork = {
 		forkRun(("-Djava.library.path=" + nativeLWJGLPath) :: Nil)
 	}
