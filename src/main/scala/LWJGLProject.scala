@@ -123,12 +123,14 @@ trait JMonkey extends LWJGLProject {
   
   // This is created for the developer
   lazy val jMonkey = "org.jmonkeyengine" % "jmonkeyengine" % jmd 
+  lazy val joggd = "de.jogg" % "j-ogg-oggd" % "1.0"
+  lazy val joggvorb = "de.jogg" % "j-ogg-vorbisd" % "1.0"
 
   // Bulk of the work, any exception here can
   // bubble up to the updateAction
   lazy val jmonkeyUpdate = task {
     // First check that we don't have cached version
-    jmonkeyCachDir exists match {
+    (jmonkeyCachDir.exists || (dependencyPath / jname).exists) match {
       case true => 
         log.info("Already have %s" format(jname))
         None
@@ -170,48 +172,52 @@ trait JMonkey extends LWJGLProject {
     None
   } describedAs "Displays any Jmonkey libraries installed on your machine."
 
+  lazy val joggCache = task {
+    val joggOrg = "de.jogg"
+    val basePath = Path.fromString(Path.userHome, ".ivy2/local/%s".format(joggOrg))
+
+    createIfNotExists (basePath)    
+
+    val depJars = dependencyPath / jname / "lib" * "j-ogg*"
+
+    depJars.get foreach { jar =>
+      val module = jar.base
+      val cachePath = basePath / module / "1.0"
+      val ivys = cachePath / "ivys"
+      val jars = cachePath / "jars"
+      
+      List(cachePath, ivys, jars) foreach createIfNotExists
+      FileUtilities.copyFlat(List(jar), jars, log)
+      val ivyXml = ivyMe(joggOrg, module, "1.0", module)
+      val ivyXmlFile = ivys / "ivy.xml"
+      FileUtilities.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString), log)  
+    }
+    None
+  } dependsOn jmonkeyUpdate describedAs "Installs the j-ogg jars to your ivy cache"
+
+  def createIfNotExists(d: Path) = if(!d.exists) FileUtilities.createDirectory(d, log)
+
   lazy val jmonkeyCache = task {
     // Attempt to make the cache
     val ivys = jmonkeyCachDir / "ivys"
     val jars = jmonkeyCachDir / "jars"
 
-    List(jmonkeyCachDir, ivys, jars) foreach { d => 
-      if(!d.exists)
-        FileUtilities.createDirectory(d, log)
-    }   
+    List(jmonkeyCachDir, ivys, jars) foreach createIfNotExists 
 
     // jMonkey lib we're interested 
     val interest = "jMonkeyEngine%s".format(jme)
     val jlibs = dependencyPath / jname * "%s.jar".format(interest)
-    
+   
     log.info("Installing %s" format(jname))
     FileUtilities.copyFlat(jlibs.get, jars, log)
-    val jmonkeyIvy = 
-<ivy-module version="1.0" xmlns:e="http://ant.apache.org/ivy/extra">
-  <info organisation="org.jmonkeyengine" module="jmonkeyengine" revision={jmd} status="release" publication={new java.util.Date().getTime.toString}/>
-  <configurations>
-    <conf name="compile" visibility="public" description=""/>
-    <conf name="runtime" visibility="public" description=""/>
-    <conf name="provided" visibility="public" description=""/>
-    <conf name="system" visibility="public" description=""/>
-    <conf name="optional" visibility="public" description=""/>
-    <conf name="sources" visibility="public" description=""/>
-    <conf name="javadoc" visibility="public" description=""/>
-  </configurations>
-  <publications>
-    <artifact name={interest} type="jar" ext="jar" conf="compile,runtime,provided,system,optional,sources,javadoc"/>
-  </publications>
-</ivy-module>
-
+    
+    val jmonkeyIvy = ivyMe("org.jmonkeyengine", "jmonkeyengine", jmd, interest)
     val ivyLocation = ivys / "ivy.xml"
-    val contents = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" +
-                   jmonkeyIvy.toString
-    FileUtilities.write(ivyLocation.asFile, contents, log)
+    FileUtilities.write(ivyLocation.asFile, ivyContents(jmonkeyIvy.toString), log)
     log.info("Complete")
     jmCleanLib()
     None
-  } dependsOn jmonkeyUpdate describedAs "Installs jMonkey lib on local machine"
-
+  } dependsOn joggCache describedAs "Installs jMonkey lib on local machine"
 
   lazy val jmonkeyCleanLib = task { jmCleanLib(); None } describedAs "Clears downloaded jMonkey in lib." 
 
@@ -244,6 +250,27 @@ trait JMonkey extends LWJGLProject {
     FileUtilities.clean(lib, log)
     lib.asFile.delete
   }
+
+  def ivyContents(xml: String) = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml
+
+  def ivyMe(org: String, module: String, revision: String, artifact: String) = {
+<ivy-module version="1.0" xmlns:e="http://ant.apache.org/ivy/extra">
+  <info organisation={org} module={module} revision={revision} status="release" publication={new java.util.Date().getTime.toString}/>
+  <configurations>
+    <conf name="compile" visibility="public" description=""/>
+    <conf name="runtime" visibility="public" description=""/>
+    <conf name="provided" visibility="public" description=""/>
+    <conf name="system" visibility="public" description=""/>
+    <conf name="optional" visibility="public" description=""/>
+    <conf name="sources" visibility="public" description=""/>
+    <conf name="javadoc" visibility="public" description=""/>
+  </configurations>
+  <publications>
+    <artifact name={artifact} type="jar" ext="jar" conf="compile,runtime,provided,system,optional,sources,javadoc"/>
+  </publications>
+</ivy-module>
+  }
+  
   override def updateAction = 
     super.updateAction dependsOn jmonkeyCache
 }
