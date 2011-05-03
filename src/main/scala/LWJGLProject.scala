@@ -84,7 +84,7 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
     FileUtilities.clean(libs, log)
     FileUtilities.clean(archived.get, log)
     None
-  } dependsOn(`package`)
+  } dependsOn(`package`) describedAs "Creates an archive for binary executable."
   
   // Maybe make this configurable
   def requiredRuntime = List(buildLibraryJar, compilePath / "lwjgl-%s.jar".format(lwjglVersion)) 
