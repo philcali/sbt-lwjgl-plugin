@@ -6,10 +6,13 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) { 
-	lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
+  lazy val compilePath = managedDependencyPath / "compile"
+	
+  lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
 
 	lazy val lwjgl = "org.lwjgl" % "lwjgl" % lwjglVersion
 	lazy val lwjglUtils = "org.lwjgl" % "lwjgl-util" % lwjglVersion
+  lazy val compileJ = compilePath ** "*.jar"
  
 	private lazy val defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
 		case "lin" => ("linux", ":", "so")
@@ -29,7 +32,7 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 				log.info("Skipping because of existence: %s" format(nativeLibPath))
 			} else {
 				val filter = new PatternFilter(Pattern.compile(defineOs._1 + "/.*" + defineOs._3))
-				FileUtilities.unzip(managedDependencyPath / "compile" / "%s.jar".format(lwjglJar), nativeLibPath, filter, log)
+				FileUtilities.unzip(compilePath / "%s.jar".format(lwjglJar), nativeLibPath, filter, log)
 			}
 			None
 		} catch {
@@ -43,6 +46,50 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		FileUtilities.clean(nativeLibPath, log)
 		None
 	}
+
+  lazy val makeExec = task {
+    val native = outputPath / "native"
+    val libs = outputPath / "libs"
+    val zipName = "%s.zip".format(this.projectName.value)
+    val outZip = outputPath / zipName 
+  
+    // Remove existing zip if it's there
+    FileUtilities.clean(outZip, log)
+
+    // Copy all the jars we need
+    FileUtilities.copyFlat(requiredRuntime, libs, log)
+   
+    // Extract the libs we need
+    FileUtilities.unzip(compilePath / "%s.jar".format(lwjglJar), native, log) 
+    val natives = native ** "*.*"
+    FileUtilities.copyFlat(natives.get, outputPath, log)
+
+    // Remove native folder
+    FileUtilities.clean(native, log)
+    native.asFile.delete
+
+    // We don't want these
+    val filtered = List(mainResourcesOutputDirectoryName, 
+                        "classes", 
+                        "analysis", 
+                        "test-analysis", 
+                        zipName) map { dir =>
+      (outputPath / dir).asInstanceOf[PathFinder]
+    } reduceLeft(_ +++ _)
+    // Archive the app
+    val archived = (outputPath ##) * "*" --- filtered
+    val resources = (mainResourcesOutputPath ##) * "*"
+
+    FileUtilities.zip(archived.get ++ resources.get, outZip, true, log)
+    FileUtilities.clean(libs, log)
+    FileUtilities.clean(archived.get, log)
+    None
+  } dependsOn(`package`)
+  
+  // Maybe make this configurable
+  def requiredRuntime = List(buildLibraryJar, compilePath / "lwjgl-%s.jar".format(lwjglVersion)) 
+  def manifestedJars = requiredRuntime map ("libs/" + _.name) mkString(" ")
+  override def manifestClassPath = Some(manifestedJars)
 
 	def lwjglJar = "lwjgl-native-%s" format(lwjglVersion)
 	def lwjglVersion = "2.7.1"
@@ -125,6 +172,7 @@ trait JMonkey extends LWJGLProject {
     None
   } describedAs "Displays any Jmonkey libraries installed on your machine."
 
+  // TODO: Build a real ivy cache that can be used  for managedLib
   lazy val jmonkeyCache = task {
     // Attempt to make the cache
     if(!jmonkeycachDir.exists)
@@ -202,6 +250,9 @@ trait Slick2D extends LWJGLProject {
   // Override this for newer version
   def slickVersion = "274"
 
+  override def requiredRuntime = 
+    super.requiredRuntime ++ List(compilePath / "slick-%s.jar".format(slickVersion)) 
+  
 	override def updateAction = 
 		super.updateAction dependsOn `patch`
 
