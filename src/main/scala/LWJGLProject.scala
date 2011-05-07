@@ -47,20 +47,6 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 	}
 
   lazy val lwjglNatives = task { args => 
-
-    def completeTask(path: Path) = task {
-      val unzipTo = path / "natives"
-      val lwjglN = compilePath / "%s.jar".format(lwjglJar)
-
-      FileUtilities.unzip(lwjglN, unzipTo, log)
-
-      val allFiles = unzipTo ** "*.*"
-      FileUtilities.copyFlat(allFiles.get, path, log)
-      FileUtilities.clean(unzipTo, log)
-      unzipTo.asFile.delete
-      None
-    }
-
     val lwjglNativeOutputPath = args match {
       case Array(path, _*) => Path.fromFile(path)
       case _ => outputPath
@@ -71,11 +57,24 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
     }
 
     // Do work
-    completeTask(lwjglNativeOutputPath)
+    extractionTask(lwjglNativeOutputPath)
 
   } completeWith (
     List(outputPath.absolutePath)
   ) describedAs "Extract lwjgl natives to this location."
+
+  def extractionTask(path: Path) = task {
+    val unzipTo = path / "natives"
+    val lwjglN = compilePath / "%s.jar".format(lwjglJar)
+
+    FileUtilities.unzip(lwjglN, unzipTo, log)
+
+    val allFiles = unzipTo ** "*.*"
+    FileUtilities.copyFlat(allFiles.get, path, log)
+    FileUtilities.clean(unzipTo, log)
+    unzipTo.asFile.delete
+    None
+  } 
 
 	def lwjglJar = "lwjgl-native-%s".format(lwjglVersion)
 	def lwjglVersion = "2.7.1"
