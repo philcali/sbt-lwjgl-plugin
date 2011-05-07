@@ -6,7 +6,9 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) { 
-	lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
+  lazy val compilePath = managedDependencyPath / "compile"
+
+  lazy val lwjglRepo = "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"
 
 	lazy val lwjgl = "org.lwjgl" % "lwjgl" % lwjglVersion
 	lazy val lwjglUtils = "org.lwjgl" % "lwjgl-util" % lwjglVersion
@@ -29,7 +31,7 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 				log.info("Skipping because of existence: %s" format(nativeLibPath))
 			} else {
 				val filter = new PatternFilter(Pattern.compile(defineOs._1 + "/.*" + defineOs._3))
-				FileUtilities.unzip(managedDependencyPath / "compile" / "%s.jar".format(lwjglJar), nativeLibPath, filter, log)
+				FileUtilities.unzip(compilePath / "%s.jar".format(lwjglJar), nativeLibPath, filter, log)
 			}
 			None
 		} catch {
@@ -44,7 +46,22 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 		None
 	}
 
-	def lwjglJar = "lwjgl-native-%s" format(lwjglVersion)
+  lazy val lwjglNatives = task {
+    val unzipTo = lwjglNativeOutputPath / "natives"
+    val lwjglN = compilePath / "%s.jar".format(lwjglJar)
+
+    FileUtilities.unzip(lwjglN, unzipTo, log)
+
+    val allFiles = unzipTo ** "*.*"
+    FileUtilities.copyFlat(allFiles.get, lwjglNativeOutputPath, log)
+    FileUtilities.clean(unzipTo, log)
+    unzipTo.asFile.delete
+    None
+  } dependsOn(`update`) describedAs "Extract lwjgl natives to defined outputPath."
+
+  // Override this to extract libraries somewhere else
+  def lwjglNativeOutputPath = outputPath
+	def lwjglJar = "lwjgl-native-%s".format(lwjglVersion)
 	def lwjglVersion = "2.7.1"
 
 	override def copyResourcesAction = super.copyResourcesAction dependsOn copyLwjgl
@@ -72,11 +89,17 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
 trait JMonkey extends LWJGLProject {
   lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
   lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
+  
+  // This is created for the developer
+  lazy val jMonkey = "org.jmonkeyengine" % "jmonkeyengine" % jmd 
+  lazy val joggd = "de.jogg" % "j-ogg-oggd" % "1.0"
+  lazy val joggvorb = "de.jogg" % "j-ogg-vorbisd" % "1.0"
 
   // Bulk of the work, any exception here can
   // bubble up to the updateAction
   lazy val jmonkeyUpdate = task {
-    dependencyPath / jname exists match {
+    // First check that we don't have cached version
+    (jmonkeyCachDir.exists || (dependencyPath / jname).exists) match {
       case true => 
         log.info("Already have %s" format(jname))
         None
@@ -88,19 +111,12 @@ trait JMonkey extends LWJGLProject {
 
         val zip = "%s.zip" format(jname) 
         val zipFile = new java.io.File(zip)
-        val cache = jmonkeycachDir / zip
 
-        // Check if they already have a build we need
-        if (cache exists) {
-          log.info("Copying %s from local cache..." format(jname))
-          FileUtilities.copyFile(cache, zip, log)
-        } else {
-          val url = new URL("%s/%s" format(baseRepo, zip))
-          // Start the download
-          log.info("Downloading %s ..." format(jname))
-          log.warn("This may take a few minutes...")
-          FileUtilities.download(url, zipFile, log) 
-        }
+        val url = new URL("%s/%s" format(baseRepo, zip))
+        // Start the download
+        log.info("Downloading %s ..." format(jname))
+        log.warn("This may take a few minutes...")
+        FileUtilities.download(url, zipFile, log) 
         
         // Extract the lib dir only...
         val dest = dependencyPath / jname
@@ -116,38 +132,73 @@ trait JMonkey extends LWJGLProject {
   // Tries to find any jmonkey libs in the cache
   lazy val jmonkeyLocal = task {
     log.info("Looking for jMonkey builds: %s" format(jmd))
-    jmonkeycachDir.exists match {
-      case true => (jmonkeycachDir * "*.zip").get.foreach { 
+    jmonkeyParentCacheDir.exists match {
+      case true => (jmonkeyParentCacheDir * "*").get.foreach { 
         f => log.info("Found: %s" format(f.base))
       }
-      case false => log.info("There are no builds in: %s" format(jmonkeycachDir))
+      case false => log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
     }
     None
   } describedAs "Displays any Jmonkey libraries installed on your machine."
 
+  lazy val joggCache = task {
+    val joggOrg = "de.jogg"
+    val basePath = Path.fromString(Path.userHome, ".ivy2/local/%s".format(joggOrg))
+
+    createIfNotExists (basePath)    
+
+    val depJars = dependencyPath / jname / "lib" * "j-ogg*"
+
+    depJars.get foreach { jar =>
+      val module = jar.base
+      val cachePath = basePath / module / "1.0"
+      val ivys = cachePath / "ivys"
+      val jars = cachePath / "jars"
+      
+      List(cachePath, ivys, jars) foreach createIfNotExists
+      FileUtilities.copyFlat(List(jar), jars, log)
+      val ivyXml = ivyMe(joggOrg, module, "1.0", module)
+      val ivyXmlFile = ivys / "ivy.xml"
+      FileUtilities.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString), log)  
+    }
+    None
+  } dependsOn jmonkeyUpdate describedAs "Installs the j-ogg jars to your ivy cache"
+
   lazy val jmonkeyCache = task {
     // Attempt to make the cache
-    if(!jmonkeycachDir.exists)
-      FileUtilities.createDirectory(jmonkeycachDir, log)
+    val ivys = jmonkeyCachDir / "ivys"
+    val jars = jmonkeyCachDir / "jars"
+
+    List(jmonkeyCachDir, ivys, jars) foreach createIfNotExists 
+
+    // jMonkey lib we're interested 
+    val interest = "jMonkeyEngine%s".format(jme)
+    val jlibs = dependencyPath / jname * "%s.jar".format(interest)
+   
+    log.info("Installing %s" format(jname))
+    FileUtilities.copyFlat(jlibs.get, jars, log)
     
-    val cached = jmonkeycachDir / "%s.zip".format(jname)
-    val jlibs = dependencyPath / jname ** "*.jar"
-    
-    log.info("Installing %s" format(jname)) 
-    FileUtilities.zip(jlibs.get, cached, true, log)
+    val jmonkeyIvy = ivyMe("org.jmonkeyengine", "jmonkeyengine", jmd, interest)
+    val ivyLocation = ivys / "ivy.xml"
+    FileUtilities.write(ivyLocation.asFile, ivyContents(jmonkeyIvy.toString), log)
     log.info("Complete")
+    jmCleanLib()
     None
-  } dependsOn jmonkeyUpdate describedAs "Installs jMonkey lib on local machine"
+  } dependsOn joggCache describedAs "Installs jMonkey lib on local machine"
+
+  lazy val jmonkeyCleanLib = task { jmCleanLib(); None } describedAs "Clears downloaded jMonkey in lib." 
 
   lazy val jmonkeyCleanCache = task {
-    FileUtilities.clean(jmonkeycachDir, log)
+    FileUtilities.clean(jmonkeyParentCacheDir, log)
     None
   } describedAs "Clears installed jMonkey libs"
 
   // Used in pseudo caching
-  lazy val jmd = jmonkeyBaseVersion.split("jME")(1) + ".0" 
-  lazy val jmonkeycachDir = 
-    Path.fromString(Path.userHome, ".ivy2/local/org.jmonkeyengine/%s" format(jmd))
+  lazy val jme = jmonkeyBaseVersion.split("jME")(1)
+  lazy val jmd = "%s.0_%s" format(jme, targetedVersion) 
+  lazy val jmonkeyParentCacheDir =
+    Path.fromString(Path.userHome, ".ivy2/local/org.jmonkeyengine/jmonkeyengine")
+  lazy val jmonkeyCachDir = jmonkeyParentCacheDir / "%s".format(jmd) 
 
   // Giving the ability for users to override
   // the base version and targeted nightly build
@@ -161,8 +212,37 @@ trait JMonkey extends LWJGLProject {
     sdf.format(when)
   }
 
+  def jmCleanLib() {
+    val lib = dependencyPath / jname
+    FileUtilities.clean(lib, log)
+    lib.asFile.delete
+  }
+
+  def ivyContents(xml: String) = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml
+
+  def ivyMe(org: String, module: String, revision: String, artifact: String) = {
+<ivy-module version="1.0" xmlns:e="http://ant.apache.org/ivy/extra">
+  <info organisation={org} module={module} revision={revision} status="release" publication={new java.util.Date().getTime.toString}/>
+  <configurations>
+    <conf name="compile" visibility="public" description=""/>
+    <conf name="runtime" visibility="public" description=""/>
+    <conf name="provided" visibility="public" description=""/>
+    <conf name="system" visibility="public" description=""/>
+    <conf name="optional" visibility="public" description=""/>
+    <conf name="sources" visibility="public" description=""/>
+    <conf name="javadoc" visibility="public" description=""/>
+  </configurations>
+  <publications>
+    <artifact name={artifact} type="jar" ext="jar" conf="compile,runtime,provided,system,optional,sources,javadoc"/>
+  </publications>
+</ivy-module>
+  }
+  
+  def createIfNotExists(d: Path) = 
+    if(!d.exists) FileUtilities.createDirectory(d, log)
+
   override def updateAction = 
-    super.updateAction dependsOn jmonkeyUpdate 
+    super.updateAction dependsOn jmonkeyCache
 }
 
 /**
