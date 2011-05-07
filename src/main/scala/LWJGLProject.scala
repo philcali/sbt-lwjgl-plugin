@@ -74,7 +74,7 @@ abstract class LWJGLProject(info: ProjectInfo) extends DefaultProject(info) {
     FileUtilities.clean(unzipTo, log)
     unzipTo.asFile.delete
     None
-  } 
+  } dependsOn (`update`) 
 
 	def lwjglJar = "lwjgl-native-%s".format(lwjglVersion)
 	def lwjglVersion = "2.7.1"
