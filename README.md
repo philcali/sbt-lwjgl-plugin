@@ -11,7 +11,7 @@ In your project, create a plugins/Plugins.scala, whose contents are as follows:
     import sbt._
 
     class Plugins(info: ProjectInfo) extends PluginDefinition(info) {
-      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.5"
+      val lwjglPlugin = "com.github.philcali" % "sbt-lwjgl-plugin" % "2.0.6"
     }
 
 **Or**, you can make use of the giter8 template, to kick off your project.
