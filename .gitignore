@@ -1,0 +1,4 @@
+.DS*
+lib*
+target*
+project/boot
