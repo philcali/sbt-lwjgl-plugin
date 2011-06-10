@@ -4,9 +4,9 @@ import Keys._
 
 object Ardor3D extends Plugin {
   // Settings
-  val ardorVersion = SettingKey[String]("ardor-version")
+  val ardorVersion = SettingKey[String]("ardor-version", "Ardor3D version in the Maven repo")
 
-  lazy val ardorSettings = Seq (
+  lazy val engineSettings = Seq (
     ardorVersion := "0.7",
     resolvers += "Ardor3D Maven Repo" at 
                  "http://ardor3d.com:8081/nexus/content/groups/public/",
