@@ -8,6 +8,7 @@ import java.util.regex.Pattern
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
+/*
 trait JMonkey extends LWJGLProject {
   lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
   lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
@@ -166,3 +167,4 @@ trait JMonkey extends LWJGLProject {
   override def updateAction = 
     super.updateAction dependsOn jmonkeyCache
 }
+*/

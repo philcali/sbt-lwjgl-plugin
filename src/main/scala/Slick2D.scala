@@ -5,6 +5,7 @@ import io.Source
 /**
  * Slick dependencies
  */
+/*
 trait Slick2D extends LWJGLProject { 
 	lazy val slickRepo = "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo"
 
@@ -43,3 +44,4 @@ trait Slick2D extends LWJGLProject {
 		super.updateAction dependsOn `patch`
 
 }
+*/

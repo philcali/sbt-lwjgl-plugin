@@ -1,5 +1,6 @@
 import sbt._
 
+/*
 trait Ardor3D extends LWJGLProject {
   def ardorVersion = "0.7"
 
@@ -8,3 +9,4 @@ trait Ardor3D extends LWJGLProject {
 
   lazy val ardor = "com.ardor3d" % "ardor3d" % ardorVersion 
 }
+*/
