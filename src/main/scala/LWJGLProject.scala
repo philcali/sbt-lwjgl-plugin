@@ -9,8 +9,6 @@ import Defaults._
 
 // Base LWJGL support
 object LWJGLProject extends Plugin {
-  val LWJGL = config("lwjgl")
-
   // Default Settings
   val lwjglCopyDir = SettingKey[RichFile]("lwjgl-copy-location", "This is where lwjgl resources will be copied")
   val lwjglNativesDir = SettingKey[RichFile]("lwjgl-natives-directory", "This is the location where the lwjgl-natives will bomb to") 
