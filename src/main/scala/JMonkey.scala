@@ -1,5 +1,7 @@
 import sbt._
 
+import Keys._
+
 import java.net.URL
 import java.util.regex.Pattern
 
@@ -8,16 +10,78 @@ import java.util.regex.Pattern
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
+object JMonkey extends Plugin {
+  // All the configurable settings
+  val jmonkeyBaseRepo = SettingKey[String]("jmonkey-repo", "jMonkey repo")
+  val jmonkeyVersion = SettingKey[String]("jmonkey-version", 
+                                          "Targeted jMonkey version")
+  val jmonkeyBase = SettingKey[String]("jmonkey-base-version", 
+                                       "jMonkey Base Version")
+  val jmonkeyVersionDate = SettingKey[java.util.Date]("jmonkey-verion-date",
+               "jMonkey nightly is versioned by a timestamp, so we use those as well")
+
+  // All the configurable tasks
+  lazy val jmonkeyUpdate = TaskKey[Unit]("jmonkey-update", 
+                                  "Pulls jMonkey dependency from specified repo.") 
+  private def jmonkeyUpdateTask = (streams) map { s =>
+  }
+  lazy val jmonkeyCache = TaskKey[Unit]("jmonkey-cache",
+                                  "Installs jMonkey lib on local machine")
+  private def jmonkeyCacheTask = (streams) map { s =>
+  }
+  // TODO: maybe revisit this one
+  lazy val jmonkeyLocal = TaskKey[Unit]("jmonkey-local",
+                      "Displays any Jmonkey libraries installed on your machine.")
+  private def jmonkeyLocalTask = (streams) map { s =>
+  }
+  // TODO: maybe revisit this one too
+  lazy val jmonkeyCleanLib = TaskKey[Unit]("jmonkey-clean-lib",
+                      "Purges the jMonkey install in the cache.")
+  private def jmonkeyCleanLibTask = (streams) map { s =>
+  }
+  lazy val jmonkeyCleanCache = TaskKey[Unit]("jmonkey-clean-cache",
+                      "Purges the jMonkey installs in the local cache.")
+  private def jmonkeyCleanCacheTask = (streams) map { s =>
+  }
+  lazy val joggCache = TaskKey[Unit]("jogg-cache",
+                      "Installs the j-ogg jars to your ivy cache")
+  private def joggCacheTask = (streams) map { s =>
+  }
+
+  // Used in pseudo caching
+  private def jme(baseVersion: String) = baseVersion.split("jME")(1)
+  private def jmd(bv: String, targetedVersion: String) = 
+    "%s.0_%s".format(jme(bv), targetedVersion) 
+  private def jmonkeyCachDir(bv: String, tv: String) = 
+    jmonkeyParentCacheDir / "%s".format(jmd(bv, tv)) 
+  lazy val jmonkeyParentCacheDir =
+    Path.userHome / ".ivy2" / "local" / "org.jmonkeyengine" / "jmonkeyengine"
+
+  lazy val engineSettings = Seq (
+    // Configurable settings
+    jmonkeyBaseRepo := "http://jmonkeyengine.com/nightly",
+    jmonkeyBase := "jME3",
+    jmonkeyVersionDate := new java.util.Date(),
+    jmonkeyVersion <<= (jmonkeyVersionDate) {
+      val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
+      sdf.format(_)
+    },
+    
+    // Configurable tasks
+    jmonkeyUpdate <<= jmonkeyUpdateTask,
+
+    // We create these dependecies for you 
+    libraryDependencies <++= (jmonkeyBase, jmonkeyVersion) { (bv, tv) => Seq ( 
+      "org.jmonkeyengine" % "jmonkeyengine" % jmd(bv, tv), 
+      "de.jogg" % "j-ogg-oggd" % "1.0",
+      "de.jogg" % "j-ogg-vorbisd" % "1.0"
+    ) }
+  )
+}
 /*
 trait JMonkey extends LWJGLProject {
-  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
   lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
   
-  // This is created for the developer
-  lazy val jMonkey = "org.jmonkeyengine" % "jmonkeyengine" % jmd 
-  lazy val joggd = "de.jogg" % "j-ogg-oggd" % "1.0"
-  lazy val joggvorb = "de.jogg" % "j-ogg-vorbisd" % "1.0"
-
   // Bulk of the work, any exception here can
   // bubble up to the updateAction
   lazy val jmonkeyUpdate = task {
@@ -50,7 +114,7 @@ trait JMonkey extends LWJGLProject {
         log.info("Complete")
         None
     } 
-  } describedAs "Pulls jMonkey dependency from nightly build."
+  } 
 
   // Tries to find any jmonkey libs in the cache
   lazy val jmonkeyLocal = task {
@@ -62,7 +126,7 @@ trait JMonkey extends LWJGLProject {
       case false => log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
     }
     None
-  } describedAs "Displays any Jmonkey libraries installed on your machine."
+  } describedAs 
 
   lazy val joggCache = task {
     val joggOrg = "de.jogg"
@@ -85,7 +149,7 @@ trait JMonkey extends LWJGLProject {
       FileUtilities.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString), log)  
     }
     None
-  } dependsOn jmonkeyUpdate describedAs "Installs the j-ogg jars to your ivy cache"
+  } dependsOn jmonkeyUpdate describedAs 
 
   lazy val jmonkeyCache = task {
     // Attempt to make the cache
@@ -107,7 +171,7 @@ trait JMonkey extends LWJGLProject {
     log.info("Complete")
     jmCleanLib()
     None
-  } dependsOn joggCache describedAs "Installs jMonkey lib on local machine"
+  } dependsOn joggCache describedAs 
 
   lazy val jmonkeyCleanLib = task { jmCleanLib(); None } describedAs "Clears downloaded jMonkey in lib." 
 
@@ -116,24 +180,6 @@ trait JMonkey extends LWJGLProject {
     None
   } describedAs "Clears installed jMonkey libs"
 
-  // Used in pseudo caching
-  lazy val jme = jmonkeyBaseVersion.split("jME")(1)
-  lazy val jmd = "%s.0_%s" format(jme, targetedVersion) 
-  lazy val jmonkeyParentCacheDir =
-    Path.fromString(Path.userHome, ".ivy2/local/org.jmonkeyengine/jmonkeyengine")
-  lazy val jmonkeyCachDir = jmonkeyParentCacheDir / "%s".format(jmd) 
-
-  // Giving the ability for users to override
-  // the base version and targeted nightly build
-  def jmonkeyBaseVersion = "jME3"
-  def targetedVersion = dateString(today)
-
-  // Plugins are compiled in scala 2.7.7...
-  def today = new java.util.Date()
-  def dateString(when: java.util.Date) = {
-    val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
-    sdf.format(when)
-  }
 
   def jmCleanLib() {
     val lib = dependencyPath / jname
