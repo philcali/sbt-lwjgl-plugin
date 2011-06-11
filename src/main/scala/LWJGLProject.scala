@@ -87,6 +87,7 @@ object LWJGLProject extends Plugin {
     lwjglNatives in update <<= lwjglNativesTask,
     lwjglNatives <<= Seq(update, lwjglCopy, lwjglNatives in update).dependOn,
     lwjglClean <<= lwjglCleanTask,
+    copyResources in Compile <<= copyResources in Compile dependsOn lwjglCopy,
 
     // Neeed to load LWJGL in java.library.path
     fork := true,
