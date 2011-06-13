@@ -80,7 +80,7 @@ object JMonkey extends Plugin {
       val jlibs = dd / jname * "%s.jar".format(interest)
      
       s.log.info("Installing %s" format(jname))
-      jlibs.get foreach (IO.copyFile(_, jars))
+      jlibs.get foreach (f => IO.copyFile(f, jars / f.name))
       
       val jmonkeyIvy = ivyMe("org.jmonkeyengine", "jmonkeyengine", jmd(bv, tv), interest)
       val ivyLocation = ivys / "ivy.xml"
@@ -126,7 +126,7 @@ object JMonkey extends Plugin {
         val jars = cachePath / "jars"
         
         List(cachePath, ivys, jars) foreach createIfNotExists
-        IO.copyFile(jar, jars)
+        IO.copyFile(jar, jars / jar.name)
         val ivyXml = ivyMe(joggOrg, module, "1.0", module)
         val ivyXmlFile = ivys / "ivy.xml"
         IO.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString))
@@ -185,14 +185,20 @@ object JMonkey extends Plugin {
     jmonkeyUpdate <<= jmonkeyUpdateTask,
     jmonkeyLocal <<= jmonkeyLocalTask,
     joggCache in JMonkey <<= joggCacheTask,
-    joggCache <<= Seq(jmonkeyUpdate, joggCache in JMonkey).dependOn,
+    joggCache <<= joggCache in JMonkey dependsOn jmonkeyUpdate, 
     jmonkeyCache in JMonkey <<= jmonkeyCacheTask,
-    jmonkeyCache <<= Seq(jmonkeyUpdate, joggCache, jmonkeyCache in JMonkey).dependOn,
+    jmonkeyCache <<= jmonkeyCache in JMonkey dependsOn joggCache, 
 
     update <<= update dependsOn jmonkeyCache,
 
     jmonkeyCleanLib <<= (jmonkeyDownloadDir) map { IO.delete(_) },
-    jmonkeyCleanCache <<= (streams) map { _ => IO.delete(jmonkeyParentCacheDir) },
+    jmonkeyCleanCache <<= (streams) map { s => 
+      s.log.info("Clearing out %s" format(jmonkeyParentCacheDir))
+      IO.delete(jmonkeyParentCacheDir)
+      val jogg = Path.userHome / ".ivy2" / "local" / "de.ogg"
+      s.log.info ("clearing out %s" format(jogg))
+      IO.delete(jogg)
+    },
 
     // We create these dependecies for you 
     libraryDependencies <++= (jmonkeyBase, jmonkeyTargeted) { (bv, tv) => Seq ( 
