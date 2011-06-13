@@ -19,9 +19,9 @@ object JMonkey extends Plugin {
                         "The complete jMonkey version")
   val jmonkeyBase = SettingKey[String]("jmonkey-base-version", 
                                        "jMonkey Base Version (jME2 | jME3)")
-  val jmonkeyTargeted = SettingKey[String]("jmonkey-version", 
+  val jmonkeyTargeted = SettingKey[String]("jmonkey-target", 
                                        "Targeted jMonkey version (2011-04-22)")
-  val jmonkeyTargetedDate = SettingKey[java.util.Date]("jmonkey-verion-date",
+  val jmonkeyTargetedDate = SettingKey[java.util.Date]("jmonkey-target-date",
                "jMonkey nightly is versioned by a timestamp, use those as well")
   val jmonkeyDownloadDir = SettingKey[File]("jmonkey-download-directory",
                "jMonkey builds will be temporarily stored here.")
@@ -94,7 +94,7 @@ object JMonkey extends Plugin {
     s.log.info("Looking for jMonkey builds...")
     jmonkeyParentCacheDir.exists match {
       case true => (jmonkeyParentCacheDir * "*").get.foreach { 
-        f => s.log.info("Found: %s" format(f.base))
+        f => s.log.info("Found: %s" format(f))
       }
       case false => 
         s.log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
@@ -195,7 +195,7 @@ object JMonkey extends Plugin {
     jmonkeyCleanCache <<= (streams) map { _ => IO.delete(jmonkeyParentCacheDir) },
 
     // We create these dependecies for you 
-    libraryDependencies <++= (jmonkeyBase, jmonkeyVersion) { (bv, tv) => Seq ( 
+    libraryDependencies <++= (jmonkeyBase, jmonkeyTargeted) { (bv, tv) => Seq ( 
       "org.jmonkeyengine" % "jmonkeyengine" % jmd(bv, tv), 
       "de.jogg" % "j-ogg-oggd" % "1.0",
       "de.jogg" % "j-ogg-vorbisd" % "1.0"
