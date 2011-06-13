@@ -10,13 +10,13 @@ import Defaults._
 // Base LWJGL support
 object LWJGLProject extends Plugin {
   // Default Settings
-  val lwjglCopyDir = SettingKey[RichFile]("lwjgl-copy-location", "This is where lwjgl resources will be copied")
-  val lwjglNativesDir = SettingKey[RichFile]("lwjgl-natives-directory", "This is the location where the lwjgl-natives will bomb to") 
+  val lwjglCopyDir = SettingKey[File]("lwjgl-copy-location", "This is where lwjgl resources will be copied")
+  val lwjglNativesDir = SettingKey[File]("lwjgl-natives-directory", "This is the location where the lwjgl-natives will bomb to") 
   val lwjglVersion = SettingKey[String]("lwjgl-version", "This is the targeted LWJGL verision")
 
   // Define Tasks
-  val lwjglCopy = TaskKey[Unit]("lwjgl-copy", "Copies the LWJGL files needed to run in lwjgl-copy-location")
-  private def lwjglCopyTask: Initialize[Task[Unit]] = 
+  lazy val lwjglCopy = TaskKey[Seq[File]]("lwjgl-copy", "Copies the lwjgl library from natives jar to managed resources")
+  private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
     (streams, lwjglCopyDir, lwjglVersion) map { (s, dir, lwv) =>
       val (os, ext) = defineOs
       s.log.info("Copying files for %s" format(os))
@@ -30,13 +30,16 @@ object LWJGLProject extends Plugin {
 
         IO.unzip(pullNativeJar(lwv), dir.asFile, filter)
       }
+
+      // Return the managed LWJGL resources
+      target * "*" get
     }
 
   val lwjglClean = TaskKey[Unit]("lwjgl-clean", "Clean the LWJGL resource dir")
   private def lwjglCleanTask: Initialize[Task[Unit]] =
     (streams, lwjglCopyDir) map { (s, dir) =>
       s.log.info("Cleaning LWJGL files")
-      IO.delete(dir / defineOs._1 asFile)
+      IO.delete(dir / defineOs._1)
     }
 
   val lwjglNatives = TaskKey[Unit]("lwjgl-natives", "Copy LWJGL resources to output directory")
@@ -78,16 +81,16 @@ object LWJGLProject extends Plugin {
   override lazy val settings = Seq (
     // Settings
     lwjglVersion := "2.7.1",
-    lwjglCopyDir := file(".") / "lwjgl-resources",
+    lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
     lwjglNativesDir <<= (target) { _ / "lwjgl-natives" }, 
 
     // Tasks and dependencies
-    lwjglCopy in update <<= lwjglCopyTask,
-    lwjglCopy <<= Seq(update, lwjglCopy in update).dependOn,
+    lwjglCopy <<= lwjglCopyTask,
+    resourceGenerators in Compile <+= lwjglCopy.identity,
     lwjglNatives in update <<= lwjglNativesTask,
-    lwjglNatives <<= Seq(update, lwjglCopy, lwjglNatives in update).dependOn,
+    lwjglNatives <<= Seq(update, lwjglNatives in update).dependOn,
     lwjglClean <<= lwjglCleanTask,
-    copyResources in Compile <<= copyResources in Compile dependsOn lwjglCopy,
+    cleanFiles <+= lwjglCopyDir.identity,
 
     // Neeed to load LWJGL in java.library.path
     fork := true,
