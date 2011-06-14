@@ -11,7 +11,7 @@ information will trickle in slowly.
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
-    libraryDependencies += "com.github.philcali" %% "xsbt-lwjgl-plugin" % "0.0.1"
+    libraryDependencies += "com.github.philcali" %% "sbt-lwjgl-plugin" % "3.0.1"
 
 **Or**, you can make use of the giter8 template, to kick off your project.
 
