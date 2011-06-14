@@ -1,5 +1,7 @@
 import sbt._
 
+import Keys._
+
 import java.net.URL
 import java.util.regex.Pattern
 
@@ -8,141 +10,145 @@ import java.util.regex.Pattern
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
-trait JMonkey extends LWJGLProject {
-  lazy val baseRepo = "http://jmonkeyengine.com/nightly" 
-  lazy val jname = "%s_%s" format(jmonkeyBaseVersion, targetedVersion)
-  
-  // This is created for the developer
-  lazy val jMonkey = "org.jmonkeyengine" % "jmonkeyengine" % jmd 
-  lazy val joggd = "de.jogg" % "j-ogg-oggd" % "1.0"
-  lazy val joggvorb = "de.jogg" % "j-ogg-vorbisd" % "1.0"
+object JMonkey extends Plugin {
+  val JMonkey = config("jmonkey")
 
-  // Bulk of the work, any exception here can
-  // bubble up to the updateAction
-  lazy val jmonkeyUpdate = task {
-    // First check that we don't have cached version
-    (jmonkeyCachDir.exists || (dependencyPath / jname).exists) match {
-      case true => 
-        log.info("Already have %s" format(jname))
-        None
-      case false =>
-        // If they wanted a nightly build then this could get extreme
-        log.info("Cleaning older versions of %s" format(jmonkeyBaseVersion))
-        val previousVersions = dependencyPath * "%s*".format(jmonkeyBaseVersion) 
-        FileUtilities.clean(previousVersions.get, log)
+  // All the configurable settings
+  val jmonkeyBaseRepo = SettingKey[String]("jmonkey-repo", "jMonkey repo")
+  val jmonkeyVersion = SettingKey[String]("jmonkey-version", 
+                        "The complete jMonkey version")
+  val jmonkeyBase = SettingKey[String]("jmonkey-base-version", 
+                                       "jMonkey Base Version (jME2 | jME3)")
+  val jmonkeyTargeted = SettingKey[String]("jmonkey-target", 
+                                       "Targeted jMonkey version (2011-04-22)")
+  val jmonkeyTargetedDate = SettingKey[java.util.Date]("jmonkey-target-date",
+               "jMonkey nightly is versioned by a timestamp, use those as well")
+  val jmonkeyDownloadDir = SettingKey[File]("jmonkey-download-directory",
+               "jMonkey builds will be temporarily stored here.")
 
-        val zip = "%s.zip" format(jname) 
-        val zipFile = new java.io.File(zip)
+  // All the configurable tasks
+  lazy val jmonkeyUpdate = TaskKey[Unit]("jmonkey-update", 
+                                  "Pulls jMonkey dependency from specified repo.") 
+  private def jmonkeyUpdateTask = 
+    (streams, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir, 
+     jmonkeyBaseRepo, jmonkeyVersion) map { 
+      (s, bv, tv, dd, baseRepo, jmonkeyName) =>
+      val cacheDir = jmonkeyCachDir(bv, tv)
+      // First check that we don't have cached version
+      (cacheDir.exists || (dd / jmonkeyName exists)) match {
+        case true => 
+          s.log.info("Already have %s" format(jmonkeyName))
+        case false =>
+          // If they wanted a nightly build then this could get extreme
+          s.log.info("Cleaning older versions of %s" format(bv))
+          val previousVersions = dd * "%s*".format(bv) 
+          IO.delete(previousVersions.get)
 
-        val url = new URL("%s/%s" format(baseRepo, zip))
-        // Start the download
-        log.info("Downloading %s ..." format(jname))
-        log.warn("This may take a few minutes...")
-        FileUtilities.download(url, zipFile, log) 
-        
-        // Extract the lib dir only...
-        val dest = dependencyPath / jname
-        val filter = new PatternFilter(Pattern.compile(".*jar"))
-        FileUtilities.unzip(zipFile, dest, filter, log)
-        // Destroy the zip
-        zipFile.delete
-        log.info("Complete")
-        None
-    } 
-  } describedAs "Pulls jMonkey dependency from nightly build."
+          val zip = "%s.zip" format(jmonkeyName) 
+          val zipFile = new java.io.File(zip)
 
-  // Tries to find any jmonkey libs in the cache
-  lazy val jmonkeyLocal = task {
-    log.info("Looking for jMonkey builds: %s" format(jmd))
+          val url = new URL("%s/%s" format(baseRepo, zip))
+          // Start the download
+          s.log.info("Downloading %s ..." format(jmonkeyName))
+          s.log.warn("This may take a few minutes...")
+          IO.download(url, zipFile)
+          
+          // Extract the lib dir only...
+          val dest = dd / jmonkeyName 
+          val filter = new PatternFilter(Pattern.compile(".*jar"))
+          IO.unzip(zipFile, dest, filter)
+          // Destroy the zip
+          zipFile.delete
+          s.log.info("Complete")
+      } 
+  }
+
+  lazy val jmonkeyCache = TaskKey[Unit]("jmonkey-cache",
+                                  "Installs jMonkey lib on local machine")
+  private def jmonkeyCacheTask = 
+    (streams, jmonkeyVersion, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir) map { 
+      (s, jname, bv, tv, dd) =>
+      val cacheDir = jmonkeyCachDir(bv, tv)
+      // Attempt to make the cache
+      val ivys = cacheDir / "ivys"
+      val jars = cacheDir / "jars"
+
+      List(cacheDir, ivys, jars) foreach createIfNotExists 
+
+      // jMonkey lib we're interested 
+      val interest = "jMonkeyEngine%s".format(jme(bv))
+      val jlibs = dd / jname * "%s.jar".format(interest)
+     
+      s.log.info("Installing %s" format(jname))
+      jlibs.get foreach (f => IO.copyFile(f, jars / f.name))
+      
+      val jmonkeyIvy = ivyMe("org.jmonkeyengine", "jmonkeyengine", jmd(bv, tv), interest)
+      val ivyLocation = ivys / "ivy.xml"
+      IO.write(ivyLocation.asFile, ivyContents(jmonkeyIvy.toString))
+      s.log.info("Complete")
+      IO.delete(dd)
+  }
+  lazy val jmonkeyLocal = TaskKey[Unit]("jmonkey-local",
+                      "Displays any Jmonkey libraries installed on your machine.")
+  private def jmonkeyLocalTask = (streams) map { s =>
+    s.log.info("Looking for jMonkey builds...")
     jmonkeyParentCacheDir.exists match {
       case true => (jmonkeyParentCacheDir * "*").get.foreach { 
-        f => log.info("Found: %s" format(f.base))
+        f => s.log.info("Found: %s" format(f))
       }
-      case false => log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
+      case false => 
+        s.log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
     }
-    None
-  } describedAs "Displays any Jmonkey libraries installed on your machine."
+  }
+  // TODO: maybe revisit this one
+  lazy val jmonkeyCleanLib = TaskKey[Unit]("jmonkey-clean-lib",
+                      "Purges the jMonkey install in the cache.")
+  // TODO: maybe revisit this one too
+  lazy val jmonkeyCleanCache = TaskKey[Unit]("jmonkey-clean-cache",
+                      "Purges the jMonkey installs in the local cache.")
 
-  lazy val joggCache = task {
-    val joggOrg = "de.jogg"
-    val basePath = Path.fromString(Path.userHome, ".ivy2/local/%s".format(joggOrg))
+  lazy val joggCache = TaskKey[Unit]("jogg-cache",
+                      "Installs the j-ogg jars to your ivy cache")
+  private def joggCacheTask = 
+    (streams, jmonkeyVersion, jmonkeyDownloadDir) map { 
+      (s, jmonkeyName, dd) =>
+      val joggOrg = "de.jogg"
+      val basePath = Path.userHome / ".ivy2" / "local" / "%s".format(joggOrg)
 
-    createIfNotExists (basePath)    
+      createIfNotExists (basePath)
 
-    val depJars = dependencyPath / jname / "lib" * "j-ogg*"
+      val depJars = dd / jmonkeyName / "lib" * "j-ogg*"
 
-    depJars.get foreach { jar =>
-      val module = jar.base
-      val cachePath = basePath / module / "1.0"
-      val ivys = cachePath / "ivys"
-      val jars = cachePath / "jars"
-      
-      List(cachePath, ivys, jars) foreach createIfNotExists
-      FileUtilities.copyFlat(List(jar), jars, log)
-      val ivyXml = ivyMe(joggOrg, module, "1.0", module)
-      val ivyXmlFile = ivys / "ivy.xml"
-      FileUtilities.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString), log)  
-    }
-    None
-  } dependsOn jmonkeyUpdate describedAs "Installs the j-ogg jars to your ivy cache"
-
-  lazy val jmonkeyCache = task {
-    // Attempt to make the cache
-    val ivys = jmonkeyCachDir / "ivys"
-    val jars = jmonkeyCachDir / "jars"
-
-    List(jmonkeyCachDir, ivys, jars) foreach createIfNotExists 
-
-    // jMonkey lib we're interested 
-    val interest = "jMonkeyEngine%s".format(jme)
-    val jlibs = dependencyPath / jname * "%s.jar".format(interest)
-   
-    log.info("Installing %s" format(jname))
-    FileUtilities.copyFlat(jlibs.get, jars, log)
-    
-    val jmonkeyIvy = ivyMe("org.jmonkeyengine", "jmonkeyengine", jmd, interest)
-    val ivyLocation = ivys / "ivy.xml"
-    FileUtilities.write(ivyLocation.asFile, ivyContents(jmonkeyIvy.toString), log)
-    log.info("Complete")
-    jmCleanLib()
-    None
-  } dependsOn joggCache describedAs "Installs jMonkey lib on local machine"
-
-  lazy val jmonkeyCleanLib = task { jmCleanLib(); None } describedAs "Clears downloaded jMonkey in lib." 
-
-  lazy val jmonkeyCleanCache = task {
-    FileUtilities.clean(jmonkeyParentCacheDir, log)
-    None
-  } describedAs "Clears installed jMonkey libs"
+      depJars.get foreach { jar =>
+        val module = jar.base
+        val cachePath = basePath / module / "1.0"
+        val ivys = cachePath / "ivys"
+        val jars = cachePath / "jars"
+        
+        List(cachePath, ivys, jars) foreach createIfNotExists
+        IO.copyFile(jar, jars / jar.name)
+        val ivyXml = ivyMe(joggOrg, module, "1.0", module)
+        val ivyXmlFile = ivys / "ivy.xml"
+        IO.write(ivyXmlFile.asFile, ivyContents(ivyXml.toString))
+      }
+  }
 
   // Used in pseudo caching
-  lazy val jme = jmonkeyBaseVersion.split("jME")(1)
-  lazy val jmd = "%s.0_%s" format(jme, targetedVersion) 
+  private def jme(baseVersion: String) = baseVersion.split("jME")(1)
+
+  private def jmd(bv: String, tv: String) = 
+    "%s.0_%s".format(jme(bv), tv) 
+
+  private def jmonkeyCachDir(bv: String, tv: String) = 
+    jmonkeyParentCacheDir / "%s".format(jmd(bv, tv)) 
+
   lazy val jmonkeyParentCacheDir =
-    Path.fromString(Path.userHome, ".ivy2/local/org.jmonkeyengine/jmonkeyengine")
-  lazy val jmonkeyCachDir = jmonkeyParentCacheDir / "%s".format(jmd) 
+    Path.userHome / ".ivy2" / "local" / "org.jmonkeyengine" / "jmonkeyengine"
 
-  // Giving the ability for users to override
-  // the base version and targeted nightly build
-  def jmonkeyBaseVersion = "jME3"
-  def targetedVersion = dateString(today)
+  private def ivyContents(xml: String) = 
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml
 
-  // Plugins are compiled in scala 2.7.7...
-  def today = new java.util.Date()
-  def dateString(when: java.util.Date) = {
-    val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
-    sdf.format(when)
-  }
-
-  def jmCleanLib() {
-    val lib = dependencyPath / jname
-    FileUtilities.clean(lib, log)
-    lib.asFile.delete
-  }
-
-  def ivyContents(xml: String) = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml
-
-  def ivyMe(org: String, module: String, revision: String, artifact: String) = {
+  private def ivyMe(org: String, module: String, revision: String, artifact: String) = {
 <ivy-module version="1.0" xmlns:e="http://ant.apache.org/ivy/extra">
   <info organisation={org} module={module} revision={revision} status="release" publication={new java.util.Date().getTime.toString}/>
   <configurations>
@@ -159,10 +165,46 @@ trait JMonkey extends LWJGLProject {
   </publications>
 </ivy-module>
   }
-  
-  def createIfNotExists(d: Path) = 
-    if(!d.exists) FileUtilities.createDirectory(d, log)
 
-  override def updateAction = 
-    super.updateAction dependsOn jmonkeyCache
+  private def createIfNotExists(d: File) = 
+    if(!d.exists) IO.createDirectory(d)
+
+  lazy val engineSettings = Seq (
+    // Configurable settings
+    jmonkeyBaseRepo := "http://jmonkeyengine.com/nightly",
+    jmonkeyBase := "jME3",
+    jmonkeyTargetedDate := new java.util.Date(),
+    jmonkeyTargeted <<= (jmonkeyTargetedDate) {
+      val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
+      sdf.format(_)
+    },
+    jmonkeyVersion <<= (jmonkeyBase, jmonkeyTargeted) { "%s_%s".format(_, _) },
+    jmonkeyDownloadDir <<= (target) { _ / "jmonkeyDownloads" },
+    
+    // Configurable tasks
+    jmonkeyUpdate <<= jmonkeyUpdateTask,
+    jmonkeyLocal <<= jmonkeyLocalTask,
+    joggCache in JMonkey <<= joggCacheTask,
+    joggCache <<= joggCache in JMonkey dependsOn jmonkeyUpdate, 
+    jmonkeyCache in JMonkey <<= jmonkeyCacheTask,
+    jmonkeyCache <<= jmonkeyCache in JMonkey dependsOn joggCache, 
+
+    update <<= update dependsOn jmonkeyCache,
+
+    jmonkeyCleanLib <<= (jmonkeyDownloadDir) map { IO.delete(_) },
+    jmonkeyCleanCache <<= (streams) map { s => 
+      s.log.info("Clearing out %s" format(jmonkeyParentCacheDir))
+      IO.delete(jmonkeyParentCacheDir)
+      val jogg = Path.userHome / ".ivy2" / "local" / "de.ogg"
+      s.log.info ("clearing out %s" format(jogg))
+      IO.delete(jogg)
+    },
+
+    // We create these dependecies for you 
+    libraryDependencies <++= (jmonkeyBase, jmonkeyTargeted) { (bv, tv) => Seq ( 
+      "org.jmonkeyengine" % "jmonkeyengine" % jmd(bv, tv), 
+      "de.jogg" % "j-ogg-oggd" % "1.0",
+      "de.jogg" % "j-ogg-vorbisd" % "1.0"
+    ) }
+  )
 }

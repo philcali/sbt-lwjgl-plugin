@@ -1,7 +1,14 @@
 import sbt._
 
-trait Nicol extends LWJGLProject {
-  def nicolVersion = "0.1"
+import Keys._
 
-  lazy val nicol = "com.github.scan" %% "nicol" % nicolVersion 
+object Nicol extends Plugin {
+  val nicolVersion = SettingKey[String]("nicol-version", "The version of Nicol in the Maven repo")
+
+  lazy val engineSettings = Seq (
+    nicolVersion := "0.1.0.1",
+    libraryDependencies <+= (nicolVersion) {
+      "com.github.scan" %% "nicol" % _
+    }
+  )
 }
