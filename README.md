@@ -4,7 +4,8 @@ This is a simple plugin for sbt specifically for [LWJGL] projects. The idea was 
 
 Please visit the [wiki] for more info, roadmap, etc.
 
-**Note: ** This plugin was recently migrated over to sbt 0.10, so project migration information will trickle in slowly.
+**Note: ** This plugin was recently migrated over to sbt 0.10, so project migration 
+information will trickle in slowly.
 
 ## Usage
 
