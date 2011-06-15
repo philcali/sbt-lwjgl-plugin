@@ -25,6 +25,8 @@ object JMonkey extends Plugin {
                "jMonkey nightly is versioned by a timestamp, use those as well")
   val jmonkeyDownloadDir = SettingKey[File]("jmonkey-download-directory",
                "jMonkey builds will be temporarily stored here.")
+  val jmonkeyPlatform = SettingKey[String]("jmonkey-platform",
+               "Targeted platform (desktop | android)")
 
   // All the configurable tasks
   lazy val jmonkeyUpdate = TaskKey[Unit]("jmonkey-update", 
@@ -33,7 +35,7 @@ object JMonkey extends Plugin {
     (streams, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir, 
      jmonkeyBaseRepo, jmonkeyVersion) map { 
       (s, bv, tv, dd, baseRepo, jmonkeyName) =>
-      val cacheDir = jmonkeyCacheDir(bv, tv)
+      val cacheDir = jmonkeyCacheDir("desktop", bv, tv)
       // First check that we don't have cached version
       (cacheDir.exists || (dd / jmonkeyName exists)) match {
         case true => 
@@ -68,21 +70,14 @@ object JMonkey extends Plugin {
   private def jmonkeyCacheTask = 
     (streams, jmonkeyVersion, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir) map { 
       (s, jname, bv, tv, dd) =>
-      val cacheDir = jmonkeyCacheDir(bv, tv)
-      (cacheDir.exists) match {
+      jmonkeyCacheDir("desktop", bv, tv).exists match {
         case false =>
-          // Attempt to make the cache
-          val ivys = cacheDir / "ivys"
-          val poms = cacheDir / "poms"
-
           // Need this for ivy
           val org = "org.jmonkeyengine"
           val revision = jmd(bv, tv)
 
           // yyyymmdd000000
           val pub = tv.split("-").mkString + "000000"
-
-          List(cacheDir, ivys, poms) foreach createIfNotExists 
 
           // Get the jmonkey libs except those...
           val base = dd / jname
@@ -91,19 +86,33 @@ object JMonkey extends Plugin {
 
           // jMonkey libs we're interested in 
           val interest = "jMonkeyEngine%s".format(jme(bv))
-          val jlibs = baselib * "*.jar" --- (exclude) +++ (base * "%s.jar".format(interest)) +++ (base / "opt" ** "*natives.jar")
-        
-          // Build parent first
-          s.log.info("Installing %s" format(jname))
-          val children = jlibs.get map (_.base)
+          val common = baselib * "*.jar" --- (exclude) +++ (base / "opt" ** "*natives.jar")
+      
+          // Different jMonkey jars for platform 
+          val desktop = base * "%s.jar".format(interest)
+          val android = base / "opt" ** "%s.jar".format(interest)
 
-          val parentPom = xmlContents(pomMe(org, "jmonkeyengine", revision, children).toString)
-          val parentIvy = xmlContents(ivyParent(org, "jmonkeyengine", revision, children, pub).toString)
-          IO.write(ivys / "ivy.xml" asFile, parentIvy)
-          IO.write(poms / "jmonkeyengine.pom" asFile, parentPom)
-        
+          val platforms = List("desktop", "android")
+
+          platforms foreach { platform =>
+            // Attempt to make the cache
+            val cacheDir = jmonkeyCacheDir(platform, bv, tv)
+            val ivys = cacheDir / "ivys"
+            val poms = cacheDir / "poms"
+
+            // Build parents first
+            s.log.info("Installing %s" format(jname))
+            val children = common.get.map (_.base) ++ Seq("%s-%s".format(interest, platform))
+            val module = "jmonkeyengine-%s".format(platform)
+
+            val parentPom = xmlContents(pomMe(org, module, revision, children).toString)
+            val parentIvy = xmlContents(ivyParent(org, module, revision, children, pub).toString)
+            IO.write(ivys / "ivy.xml" asFile, parentIvy)
+            IO.write((poms / "%s.pom".format(module)) asFile, parentPom)
+          }
+
           // Write children next 
-          jlibs.get foreach { f =>
+          common.get foreach { f =>
             val childCache = jmonkeyParentBaseDir / f.base / revision
             val childIvys = childCache / "ivys"
             val childJars = childCache / "jars"
@@ -112,6 +121,20 @@ object JMonkey extends Plugin {
             IO.write(childIvys / "ivy.xml" asFile, civy)
             IO.copyFile(f, childJars / f.name)
           }
+
+          // Write these individually
+          val handler = (platform: String) => (f: File) => {
+            val newName = "%s-%s".format(f.base, platform)
+            val childCache = jmonkeyParentBaseDir / newName / revision
+            
+            val civy = xmlContents(ivyMe(org, newName, revision, newName, pub).toString)
+            IO.write(childCache / "ivy" / "ivy.xml" asFile, civy)
+            IO.copyFile(f, childCache / "jars" / (newName + ".jar"))
+          }
+
+          desktop.get foreach handler("desktop")
+          android.get foreach handler("android")
+
           IO.delete(dd)
         case true => s.log.info("Already installed")
         s.log.info("Complete")
@@ -121,12 +144,13 @@ object JMonkey extends Plugin {
                       "Displays any Jmonkey libraries installed on your machine.")
   private def jmonkeyLocalTask = (streams) map { s =>
     s.log.info("Looking for jMonkey builds...")
-    jmonkeyParentCacheDir.exists match {
-      case true => (jmonkeyParentCacheDir * "*").get.foreach { 
+    val targeted = "jmonkeyengine-desktop"
+    jmonkeyParentBaseDir / targeted exists match {
+      case true => (jmonkeyParentBaseDir / targeted * "*").get.foreach { 
         f => s.log.info("Found: %s" format(f))
       }
       case false => 
-        s.log.info("There are no builds in: %s" format(jmonkeyParentCacheDir))
+        s.log.info("There are no builds in: %s" format(jmonkeyParentBaseDir))
     }
   }
   // TODO: maybe revisit this one
@@ -142,13 +166,11 @@ object JMonkey extends Plugin {
   private def jmd(bv: String, tv: String) = 
     "%s.0_%s".format(jme(bv), tv) 
 
-  private def jmonkeyCacheDir(bv: String, tv: String) = 
-    jmonkeyParentCacheDir / "%s".format(jmd(bv, tv)) 
+  private def jmonkeyCacheDir(platform: String, bv: String, tv: String) = 
+    jmonkeyParentBaseDir / "jmonkeyengine-%s".format(platform) / "%s".format(jmd(bv, tv)) 
 
   lazy val jmonkeyParentBaseDir =
     Path.userHome / ".ivy2" / "local" / "org.jmonkeyengine"
-
-  lazy val jmonkeyParentCacheDir = jmonkeyParentBaseDir / "jmonkeyengine"
 
   private def xmlContents(xml: String) = 
     "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n" + xml
@@ -238,6 +260,7 @@ object JMonkey extends Plugin {
     },
     jmonkeyVersion <<= (jmonkeyBase, jmonkeyTargeted) { "%s_%s".format(_, _) },
     jmonkeyDownloadDir := file(".") / "jmonkeyDownloads",
+    jmonkeyPlatform := "desktop",
     
     // Configurable tasks
     jmonkeyUpdate in JMonkey <<= jmonkeyUpdateTask,
@@ -254,8 +277,10 @@ object JMonkey extends Plugin {
     },
 
     // We create these dependecies for you 
-    libraryDependencies <++= (jmonkeyBase, jmonkeyTargeted) { (bv, tv) => Seq ( 
-      "org.jmonkeyengine" % "jmonkeyengine" % jmd(bv, tv) 
-    ) }
+    libraryDependencies <++= (jmonkeyPlatform, jmonkeyBase, jmonkeyTargeted) { 
+      (platform, bv, tv) => Seq ( 
+        "org.jmonkeyengine" % "jmonkeyengine-%s".format(platform) % jmd(bv, tv) 
+      ) 
+    }
   )
 }
