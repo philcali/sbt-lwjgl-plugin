@@ -276,7 +276,7 @@ object JMonkey extends Plugin {
       IO.delete(jmonkeyParentBaseDir)
     },
 
-    // We create these dependecies for you 
+    // Create these dependecies for you 
     libraryDependencies <++= (jmonkeyPlatform, jmonkeyBase, jmonkeyTargeted) { 
       (platform, bv, tv) => Seq ( 
         "org.jmonkeyengine" % "jmonkeyengine-%s".format(platform) % jmd(bv, tv) 
