@@ -13,12 +13,13 @@ object LWJGLProject extends Plugin {
   val lwjglCopyDir = SettingKey[File]("lwjgl-copy-location", "This is where lwjgl resources will be copied")
   val lwjglNativesDir = SettingKey[File]("lwjgl-natives-directory", "This is the location where the lwjgl-natives will bomb to") 
   val lwjglVersion = SettingKey[String]("lwjgl-version", "This is the targeted LWJGL verision")
+  val lwjglOs = SettingKey[(String, String)]("lwjgl-os", "This is the targeted OS for the build. Defaults to the running OS.")
 
   // Define Tasks
   lazy val lwjglCopy = TaskKey[Seq[File]]("lwjgl-copy", "Copies the lwjgl library from natives jar to managed resources")
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
-    (streams, lwjglCopyDir, lwjglVersion) map { (s, dir, lwv) =>
-      val (os, ext) = defineOs
+    (streams, lwjglCopyDir, lwjglVersion, lwjglOs) map { (s, dir, lwv, dos) =>
+      val (os, ext) = dos 
       s.log.info("Copying files for %s" format(os))
 
       val target = dir / os
@@ -37,9 +38,9 @@ object LWJGLProject extends Plugin {
 
   val lwjglClean = TaskKey[Unit]("lwjgl-clean", "Clean the LWJGL resource dir")
   private def lwjglCleanTask: Initialize[Task[Unit]] =
-    (streams, lwjglCopyDir) map { (s, dir) =>
+    (streams, lwjglCopyDir, lwjglOs) map { (s, dir, os) =>
       s.log.info("Cleaning LWJGL files")
-      IO.delete(dir / defineOs._1)
+      IO.delete(dir / os._1)
     }
 
   val lwjglNatives = TaskKey[Unit]("lwjgl-natives", "Copy LWJGL resources to output directory")
@@ -83,6 +84,7 @@ object LWJGLProject extends Plugin {
     lwjglVersion := "2.7.1",
     lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
     lwjglNativesDir <<= (target) { _ / "lwjgl-natives" }, 
+    lwjglOs := defineOs,
 
     // Tasks and dependencies
     lwjglCopy <<= lwjglCopyTask,
@@ -94,8 +96,8 @@ object LWJGLProject extends Plugin {
 
     // Neeed to load LWJGL in java.library.path
     fork := true,
-    javaOptions <+= (lwjglCopyDir) { dir => 
-      "-Djava.library.path=%s".format(dir / defineOs._1)
+    javaOptions <+= (lwjglCopyDir, lwjglOs) { (dir, os) => 
+      "-Djava.library.path=%s".format(dir / os._1)
     },
     
     // Project Dependencies
