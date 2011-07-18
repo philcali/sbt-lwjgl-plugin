@@ -11,7 +11,9 @@ information will trickle in slowly.
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
-    libraryDependencies += "com.github.philcali" %% "sbt-lwjgl-plugin" % "3.0.2"
+    libraryDependencies += (sbtVersion) { (sv) => 
+      "com.github.philcali" %% "sbt-lwjgl-plugin" % "sbt" + sv + "_3.0.3"
+    }
 
 **Or**, you can make use of the giter8 template, to kick off your project.
 
@@ -25,10 +27,11 @@ The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the 
 
 **Note for Slick Devs**: You may have to run update twice. The second time will patch an ivy dependency xml to pull the correct phys2d jar.
 
-See the [wiki] for more detail about satellite project definition (ie: [Slick2D], jMonkey, [Nicol], [Ardor3D])
+See the [wiki] for more detail about satellite project definition (ie: [Slick2D], [jMonkey], [Nicol], [Ardor3D])
 
 [Ardor3D]: http://ardor3d.com/
 [Nicol]: http://scan.github.com/Nicol
+[jMonkey]: http://jmonkeyengine.org/
 [Slick2D]: http://slick.cokeandcode.com/
 [wiki]: https://github.com/philcali/sbt-lwjgl-plugin/wiki/sbt-lwjgl-plugin
 [Death by Misadventure]: http://blog.misadventuregames.com/post/248744147/scala-and-lwjgl-with-sbt-updated
