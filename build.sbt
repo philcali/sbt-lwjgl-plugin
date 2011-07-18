@@ -4,10 +4,16 @@ name := "sbt-lwjgl-plugin"
 
 organization := "com.github.philcali"
 
-version := "3.0.2"
+version <<= (sbtVersion) ("sbt" + _ + "_3.0.3") 
 
 publishTo := Some("Scala Tools Nexus" at "http://nexus.scala-tools.org/content/repositories/releases/")
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
-publishMavenStyle := true
+publishArtifact in (Compile, packageBin) := true
+
+publishArtifact in (Test, packageBin) := false
+
+publishArtifact in (Compile, packageDoc) := false
+
+publishArtifact in (Compile, packageSrc) := false

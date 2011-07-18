@@ -26,14 +26,15 @@ object LWJGLProject extends Plugin {
 
       if(target.exists) {
         s.log.info("Skipping because of existence: %s" format(target))
+        Nil
       } else {
         val filter = new PatternFilter(Pattern.compile(os + "/.*" + ext))
 
         IO.unzip(pullNativeJar(lwv), dir.asFile, filter)
+  
+        // Return the managed LWJGL resources
+        target * "*" get
       }
-
-      // Return the managed LWJGL resources
-      target * "*" get
     }
 
   val lwjglClean = TaskKey[Unit]("lwjgl-clean", "Clean the LWJGL resource dir")
@@ -78,17 +79,16 @@ object LWJGLProject extends Plugin {
     Path.userHome / ".ivy2" / "cache" / org / name / "jars" / jar
   }
 
-  // Every project must have these
-  override lazy val settings = Seq (
+  lazy val engineSettings = Seq (
     // Settings
     lwjglVersion := "2.7.1",
-    lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
+    lwjglCopyDir <<= (resourceManaged in (Compile, run)) { _ / "lwjgl-resources" },
     lwjglNativesDir <<= (target) { _ / "lwjgl-natives" }, 
     lwjglOs := defineOs,
 
     // Tasks and dependencies
     lwjglCopy <<= lwjglCopyTask,
-    resourceGenerators in Compile <+= lwjglCopy.identity,
+    resourceGenerators in (Compile, run) <+= lwjglCopy.identity,
     lwjglNatives in update <<= lwjglNativesTask,
     lwjglNatives <<= Seq(update, lwjglNatives in update).dependOn,
     lwjglClean <<= lwjglCleanTask,

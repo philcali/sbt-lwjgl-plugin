@@ -10,7 +10,7 @@ import java.util.regex.Pattern
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
-object JMonkey extends Plugin {
+object JMonkey {
   val JMonkey = config("jmonkey")
 
   // All the configurable settings

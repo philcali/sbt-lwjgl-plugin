@@ -6,7 +6,7 @@ import io.Source
 /**
  * Slick dependencies
  */
-object Slick2D extends Plugin {
+object Slick2D {
   val slickVersion = SettingKey[String]("slick-version", "The version of Slick2D in the Maven Repo")
 
   val slickPatch = TaskKey[Unit]("slick-patch", "The phys2d dependency pom is broken. Patch aims to fix it")
