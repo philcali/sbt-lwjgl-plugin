@@ -82,13 +82,13 @@ object LWJGLProject extends Plugin {
   lazy val engineSettings = Seq (
     // Settings
     lwjglVersion := "2.7.1",
-    lwjglCopyDir <<= (resourceManaged in (Compile, run)) { _ / "lwjgl-resources" },
+    lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
     lwjglNativesDir <<= (target) { _ / "lwjgl-natives" }, 
     lwjglOs := defineOs,
 
     // Tasks and dependencies
     lwjglCopy <<= lwjglCopyTask,
-    resourceGenerators in (Compile, run) <+= lwjglCopy.identity,
+    resourceGenerators in Compile <+= lwjglCopy.identity,
     lwjglNatives in update <<= lwjglNativesTask,
     lwjglNatives <<= Seq(update, lwjglNatives in update).dependOn,
     lwjglClean <<= lwjglCleanTask,
