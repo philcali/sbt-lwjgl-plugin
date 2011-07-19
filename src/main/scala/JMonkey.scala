@@ -249,7 +249,7 @@ object JMonkey {
   private def createIfNotExists(d: File) = 
     if(!d.exists) IO.createDirectory(d)
 
-  lazy val engineSettings = Seq (
+  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
     // Configurable settings
     jmonkeyBaseRepo := "http://jmonkeyengine.com/nightly",
     jmonkeyBase := "jME3",

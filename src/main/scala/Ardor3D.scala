@@ -6,7 +6,7 @@ object Ardor3D {
   // Settings
   val ardorVersion = SettingKey[String]("ardor-version", "Ardor3D version in the Maven repo")
 
-  lazy val engineSettings = Seq (
+  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
     ardorVersion := "0.8-SNAPSHOT",
     resolvers ++= Seq (
       "Ardor3D Maven repo" at 

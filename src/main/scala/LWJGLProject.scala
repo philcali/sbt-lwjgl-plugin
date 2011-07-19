@@ -79,7 +79,7 @@ object LWJGLProject extends Plugin {
     Path.userHome / ".ivy2" / "cache" / org / name / "jars" / jar
   }
 
-  lazy val engineSettings = Seq (
+  lazy val engineSettings: Seq[Setting[_]] = Seq (
     // Settings
     lwjglVersion := "2.7.1",
     lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },

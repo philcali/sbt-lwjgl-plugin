@@ -27,7 +27,7 @@ object Slick2D {
     }
   }
 
-  lazy val engineSettings = Seq (
+  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
     slickVersion := "274", 
     slickPatch <<= slickPatchTask, 
     update <<= update dependsOn slickPatch,
