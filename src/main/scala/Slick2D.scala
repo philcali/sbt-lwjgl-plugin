@@ -1,15 +1,13 @@
 import sbt._
 
 import Keys._
+import LWJGLKeys._
 import io.Source
 
 /**
  * Slick dependencies
  */
 object Slick2D {
-  val slickVersion = SettingKey[String]("slick-version", "The version of Slick2D in the Maven Repo")
-
-  val slickPatch = TaskKey[Unit]("slick-patch", "The phys2d dependency pom is broken. Patch aims to fix it")
   private def slickPatchTask = (streams) map { s =>
     val path = Path.userHome / ".ivy2" / "cache" / "phys2d" / "phys2d" / "ivy-060408.xml"
     if (path.exists) {

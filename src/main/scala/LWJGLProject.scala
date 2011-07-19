@@ -4,19 +4,13 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 import Keys._
+import LWJGLKeys._
 import Project.Initialize
-import Defaults._
 
 // Base LWJGL support
 object LWJGLProject extends Plugin {
-  // Default Settings
-  val lwjglCopyDir = SettingKey[File]("lwjgl-copy-location", "This is where lwjgl resources will be copied")
-  val lwjglNativesDir = SettingKey[File]("lwjgl-natives-directory", "This is the location where the lwjgl-natives will bomb to") 
-  val lwjglVersion = SettingKey[String]("lwjgl-version", "This is the targeted LWJGL verision")
-  val lwjglOs = SettingKey[(String, String)]("lwjgl-os", "This is the targeted OS for the build. Defaults to the running OS.")
 
   // Define Tasks
-  lazy val lwjglCopy = TaskKey[Seq[File]]("lwjgl-copy", "Copies the lwjgl library from natives jar to managed resources")
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
     (streams, lwjglCopyDir, lwjglVersion, lwjglOs) map { (s, dir, lwv, dos) =>
       val (os, ext) = dos 
@@ -37,14 +31,12 @@ object LWJGLProject extends Plugin {
       }
     }
 
-  val lwjglClean = TaskKey[Unit]("lwjgl-clean", "Clean the LWJGL resource dir")
   private def lwjglCleanTask: Initialize[Task[Unit]] =
     (streams, lwjglCopyDir, lwjglOs) map { (s, dir, os) =>
       s.log.info("Cleaning LWJGL files")
       IO.delete(dir / os._1)
     }
 
-  val lwjglNatives = TaskKey[Unit]("lwjgl-natives", "Copy LWJGL resources to output directory")
   private def lwjglNativesTask =
     (streams, lwjglNativesDir, lwjglVersion) map { (s, outDir, lwv) =>
       val unzipTo = file(".") / "natives-cache"

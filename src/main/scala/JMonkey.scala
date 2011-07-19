@@ -1,6 +1,7 @@
 import sbt._
 
 import Keys._
+import LWJGLKeys._
 
 import java.net.URL
 import java.util.regex.Pattern
@@ -13,24 +14,6 @@ import java.util.regex.Pattern
 object JMonkey {
   val JMonkey = config("jmonkey")
 
-  // All the configurable settings
-  val jmonkeyBaseRepo = SettingKey[String]("jmonkey-repo", "jMonkey repo")
-  val jmonkeyVersion = SettingKey[String]("jmonkey-version", 
-                        "The complete jMonkey version")
-  val jmonkeyBase = SettingKey[String]("jmonkey-base-version", 
-                                       "jMonkey Base Version (jME2 | jME3)")
-  val jmonkeyTargeted = SettingKey[String]("jmonkey-target", 
-                                       "Targeted jMonkey version (2011-04-22)")
-  val jmonkeyTargetedDate = SettingKey[java.util.Date]("jmonkey-target-date",
-               "jMonkey nightly is versioned by a timestamp, use those as well")
-  val jmonkeyDownloadDir = SettingKey[File]("jmonkey-download-directory",
-               "jMonkey builds will be temporarily stored here.")
-  val jmonkeyPlatform = SettingKey[String]("jmonkey-platform",
-               "Targeted platform (desktop | android)")
-
-  // All the configurable tasks
-  lazy val jmonkeyUpdate = TaskKey[Unit]("jmonkey-update", 
-                                  "Pulls jMonkey dependency from specified repo.") 
   private def jmonkeyUpdateTask = 
     (streams, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir, 
      jmonkeyBaseRepo, jmonkeyVersion) map { 
@@ -65,8 +48,6 @@ object JMonkey {
       } 
   }
 
-  lazy val jmonkeyCache = TaskKey[Unit]("jmonkey-cache",
-                                  "Installs jMonkey lib on local machine")
   private def jmonkeyCacheTask = 
     (streams, jmonkeyVersion, jmonkeyBase, jmonkeyTargeted, jmonkeyDownloadDir) map { 
       (s, jname, bv, tv, dd) =>
@@ -140,8 +121,7 @@ object JMonkey {
         s.log.info("Complete")
     }
   }
-  lazy val jmonkeyLocal = TaskKey[Unit]("jmonkey-local",
-                      "Displays any Jmonkey libraries installed on your machine.")
+
   private def jmonkeyLocalTask = (streams) map { s =>
     s.log.info("Looking for jMonkey builds...")
     val targeted = "jmonkeyengine-desktop"
@@ -153,12 +133,6 @@ object JMonkey {
         s.log.info("There are no builds in: %s" format(jmonkeyParentBaseDir))
     }
   }
-  // TODO: maybe revisit this one
-  lazy val jmonkeyCleanLib = TaskKey[Unit]("jmonkey-clean-lib",
-                      "Purges the jMonkey install in the cache.")
-  // TODO: maybe revisit this one too
-  lazy val jmonkeyCleanCache = TaskKey[Unit]("jmonkey-clean-cache",
-                      "Purges the jMonkey installs in the local cache.")
 
   // Used in pseudo caching
   private def jme(baseVersion: String) = baseVersion.split("jME")(1)
@@ -275,6 +249,8 @@ object JMonkey {
       s.log.info("Clearing out %s" format(jmonkeyParentBaseDir))
       IO.delete(jmonkeyParentBaseDir)
     },
+
+    cleanFiles <+= jmonkeyDownloadDir.identity,
 
     // Create these dependecies for you 
     libraryDependencies <++= (jmonkeyPlatform, jmonkeyBase, jmonkeyTargeted) { 
