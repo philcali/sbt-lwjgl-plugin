@@ -11,9 +11,12 @@ information will trickle in slowly.
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
-    libraryDependencies += (sbtVersion) { sv => 
+    libraryDependencies <+= (sbtVersion) { sv => 
       "com.github.philcali" %% "sbt-lwjgl-plugin" % ("sbt" + sv + "_3.0.4")
     }
+
+To take advantage of the plugin's settings, you must add `LWJGLProject.engineSettings` either to your build.sbt or build.scala.
+For working in a particular child environment, use one of the satellite settings, ie: `Nicol.engineSettings` or `JMonkey.engineSettings`. 
 
 **Or**, you can make use of the giter8 template, to kick off your project.
 
