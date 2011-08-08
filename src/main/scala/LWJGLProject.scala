@@ -12,7 +12,7 @@ object LWJGLProject extends Plugin {
 
   // Define Tasks
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
-    (streams, lwjglCopyDir, lwjglVersion, lwjglOs) map { (s, dir, lwv, dos) =>
+    (streams, lwjglCopyDir, lwjglVersion, lwjglOs, ivyPaths) map { (s, dir, lwv, dos, ivys) =>
       val (os, ext) = dos 
       s.log.info("Copying files for %s" format(os))
 
@@ -24,7 +24,7 @@ object LWJGLProject extends Plugin {
       } else {
         val filter = new PatternFilter(Pattern.compile(os + "/.*" + ext))
 
-        IO.unzip(pullNativeJar(lwv), dir.asFile, filter)
+        IO.unzip(pullNativeJar(lwv, ivys.ivyHome), dir.asFile, filter)
   
         // Return the managed LWJGL resources
         target * "*" get
@@ -38,9 +38,9 @@ object LWJGLProject extends Plugin {
     }
 
   private def lwjglNativesTask =
-    (streams, lwjglNativesDir, lwjglVersion) map { (s, outDir, lwv) =>
+    (streams, lwjglNativesDir, lwjglVersion, ivyPaths) map { (s, outDir, lwv, ivys) =>
       val unzipTo = file(".") / "natives-cache"
-      val lwjglN = pullNativeJar(lwv)
+      val lwjglN = pullNativeJar(lwv, ivys.ivyHome)
 
       s.log.info("Unzipping the native jar")
       IO.unzip(lwjglN, unzipTo)
@@ -64,11 +64,14 @@ object LWJGLProject extends Plugin {
     case _ => ("unknown", "")
   }
 
-  private def pullNativeJar(lwv: String) = { 
+  private def pullNativeJar(lwv: String, ivyHome: Option[File]) = { 
     val org = "org.lwjgl"
     val name = "lwjgl-native"
     val jar = "%s-%s.jar" format(name, lwv)
-    Path.userHome / ".ivy2" / "cache" / org / name / "jars" / jar
+
+    val base = ivyHome.getOrElse(Path.userHome / ".ivy2")
+
+    base / "cache" / org / name / "jars" / jar
   }
 
   lazy val engineSettings: Seq[Setting[_]] = Seq (
