@@ -96,6 +96,6 @@ object LWJGLProject extends Plugin {
       "org.lwjgl" % "lwjgl-util" % v 
     ) },
 
-    update <<= update dependsOn (targetNatives in LWJGL)
+    targetNatives in LWJGL <<= targetNatives in LWJGL dependsOn update
   )
 }

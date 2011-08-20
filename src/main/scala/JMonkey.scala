@@ -17,9 +17,11 @@ object JMonkeyProject {
 
   private def jmonkeyUpdateTask = 
     (streams, baseVersion, targetVersion, downloadDir, 
-     baseRepo, version) map { 
-      (s, bv, tv, dd, baseRepo, jmonkeyName) =>
-      val cacheDir = jmonkeyCacheDir("desktop", bv, tv)
+     baseRepo, version, ivyPaths) map { 
+      (s, bv, tv, dd, baseRepo, jmonkeyName, ivyPaths) =>
+
+      val cacheDir = jmonkeyCacheDir("desktop", bv, tv, ivyPaths.ivyHome)
+
       // First check that we don't have cached version
       (cacheDir.exists || (dd / jmonkeyName exists)) match {
         case true => 
@@ -50,9 +52,9 @@ object JMonkeyProject {
   }
 
   private def jmonkeyCacheTask = 
-    (streams, version, baseVersion, targetVersion, downloadDir) map { 
-      (s, jname, bv, tv, dd) =>
-      jmonkeyCacheDir("desktop", bv, tv).exists match {
+    (streams, version, baseVersion, targetVersion, downloadDir, ivyPaths) map { 
+      (s, jname, bv, tv, dd, ivyPaths) =>
+      jmonkeyCacheDir("desktop", bv, tv, ivyPaths.ivyHome).exists match {
         case false =>
           // Need this for ivy
           val org = "org.jmonkeyengine"
@@ -78,7 +80,7 @@ object JMonkeyProject {
 
           platforms foreach { platform =>
             // Attempt to make the cache
-            val cacheDir = jmonkeyCacheDir(platform, bv, tv)
+            val cacheDir = jmonkeyCacheDir(platform, bv, tv, ivyPaths.ivyHome)
             val ivys = cacheDir / "ivys"
             val poms = cacheDir / "poms"
 
@@ -94,9 +96,11 @@ object JMonkeyProject {
             IO.write((poms / "%s.pom".format(module)) asFile, parentPom)
           }
 
+          val cacheBase = jmonkeyParentBaseDir(ivyPaths.ivyHome)
+
           // Write children next 
           common.get foreach { f =>
-            val childCache = jmonkeyParentBaseDir / f.base / revision
+            val childCache = cacheBase / f.base / revision
             val childIvys = childCache / "ivys"
             val childJars = childCache / "jars"
             
@@ -108,7 +112,7 @@ object JMonkeyProject {
           // Write these individually
           val handler = (platform: String) => (f: File) => {
             val newName = "%s-%s".format(f.base, platform)
-            val childCache = jmonkeyParentBaseDir / newName / revision
+            val childCache = cacheBase / newName / revision
             
             val civy = ivyMe(org, newName, revision, newName, pub)
             IO.write(childCache / "ivy" / "ivy.xml" asFile, civy)
@@ -124,15 +128,18 @@ object JMonkeyProject {
     }
   }
 
-  private def jmonkeyLocalTask = (streams) map { s =>
+  private def jmonkeyLocalTask = (streams, targetPlatform, ivyPaths) map { (s, tp, ivys) =>
     s.log.info("Looking for jMonkey builds...")
-    val targeted = "jmonkeyengine-desktop"
-    jmonkeyParentBaseDir / targeted exists match {
-      case true => (jmonkeyParentBaseDir / targeted * "*").get.foreach { 
+
+    val targeted = "jmonkeyengine-%s".format(tp)
+    val base = jmonkeyParentBaseDir(ivys.ivyHome)
+
+    base / targeted exists match {
+      case true => (base / targeted * "*").get.foreach { 
         f => s.log.info("Found: %s" format(f))
       }
       case false => 
-        s.log.info("There are no builds in: %s" format(jmonkeyParentBaseDir))
+        s.log.info("There are no builds in: %s" format(base))
     }
   }
 
@@ -142,12 +149,13 @@ object JMonkeyProject {
   private def jmd(bv: String, tv: String) = 
     "%s.0_%s".format(jme(bv), tv) 
 
-  private def jmonkeyCacheDir(platform: String, bv: String, tv: String) = 
-    jmonkeyParentBaseDir / "jmonkeyengine-%s".format(platform) / "%s".format(jmd(bv, tv)) 
+  private def jmonkeyCacheDir(platform: String, bv: String, tv: String, ivyHome: Option[File]) = { 
+    val base = jmonkeyParentBaseDir(ivyHome)
+    (base / "jmonkeyengine-%s".format(platform) / "%s".format(jmd(bv, tv))) 
+  }
 
-  lazy val jmonkeyParentBaseDir =
-   Path.userHome / ".ivy2" / "local" / "org.jmonkeyengine"
-
+  private def jmonkeyParentBaseDir(ivyHome: Option[File]) =
+    ivyHome.getOrElse (Path.userHome / ".ivy2") / "local" / "org.jmonkeyengine"
 
   private def createIfNotExists(d: File) = 
     if(!d.exists) IO.createDirectory(d)
@@ -176,9 +184,9 @@ object JMonkeyProject {
 
       cleanLib <<= (downloadDir) map { IO.delete(_) },
 
-      cleanCache <<= (streams) map { s => 
-        s.log.info("Clearing out %s" format(jmonkeyParentBaseDir))
-        IO.delete(jmonkeyParentBaseDir)
+      cleanCache <<= (streams, ivyPaths) map { (s, ivys) => 
+        s.log.info("Clearing out %s" format(jmonkeyParentBaseDir(ivys.ivyHome)))
+        IO.delete(jmonkeyParentBaseDir(ivys.ivyHome))
       }
 
     ) } ++ Seq(
