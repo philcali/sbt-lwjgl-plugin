@@ -8,8 +8,11 @@ import io.Source
  * Slick dependencies
  */
 object Slick2D {
-  private def slickPatchTask = (streams) map { s =>
-    val path = Path.userHome / ".ivy2" / "cache" / "phys2d" / "phys2d" / "ivy-060408.xml"
+  private def slickPatchTask = (streams, ivyPaths) map { (s, ivys) =>
+    val base = ivys.ivyHome.getOrElse(Path.userHome / ".ivy2")
+
+    val path = base / "cache" / "phys2d" / "phys2d" / "ivy-060408.xml"
+
     if (path.exists) {
 			s.log.info("Patching %s ..." format(path))
 			val pattern = "zip".r
@@ -26,15 +29,17 @@ object Slick2D {
   }
 
   lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
-    slickVersion := "274", 
-    slickPatch <<= slickPatchTask, 
-    update <<= update dependsOn slickPatch,
+    version in Slick := "274", 
+
+    patch in Slick <<= slickPatchTask, 
+    update <<= update dependsOn (patch in Slick),
+
     resolvers ++= Seq (
       "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo",
       "b2srepo" at "http://b2s-repo.googlecode.com/svn/trunk/mvn-repo",
       "Freehep" at "http://java.freehep.org/maven2"
     ),
-    libraryDependencies <+= (slickVersion) {
+    libraryDependencies <+= (version in Slick) {
       "slick" % "slick" % _
     }
   )

@@ -12,17 +12,17 @@ object LWJGLProject extends Plugin {
 
   // Define Tasks
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
-    (streams, lwjglCopyDir, lwjglVersion, lwjglOs, ivyPaths) map { (s, dir, lwv, dos, ivys) =>
-      val (os, ext) = dos 
-      s.log.info("Copying files for %s" format(os))
+    (streams, copyDir, version, os, ivyPaths) map { (s, dir, lwv, dos, ivys) =>
+      val (tos, ext) = dos 
+      s.log.info("Copying files for %s" format(tos))
 
-      val target = dir / os
+      val target = dir / tos
 
       if(target.exists) {
         s.log.info("Skipping because of existence: %s" format(target))
         Nil
       } else {
-        val filter = new PatternFilter(Pattern.compile(os + "/.*" + ext))
+        val filter = new PatternFilter(Pattern.compile(tos + "/.*" + ext))
 
         IO.unzip(pullNativeJar(lwv, ivys.ivyHome), dir.asFile, filter)
   
@@ -31,14 +31,8 @@ object LWJGLProject extends Plugin {
       }
     }
 
-  private def lwjglCleanTask: Initialize[Task[Unit]] =
-    (streams, lwjglCopyDir, lwjglOs) map { (s, dir, os) =>
-      s.log.info("Cleaning LWJGL files")
-      IO.delete(dir / os._1)
-    }
-
   private def lwjglNativesTask =
-    (streams, lwjglNativesDir, lwjglVersion, ivyPaths) map { (s, outDir, lwv, ivys) =>
+    (streams, nativesDir, version, ivyPaths) map { (s, outDir, lwv, ivys) =>
       val unzipTo = file(".") / "natives-cache"
       val lwjglN = pullNativeJar(lwv, ivys.ivyHome)
 
@@ -74,32 +68,34 @@ object LWJGLProject extends Plugin {
     base / "cache" / org / name / "jars" / jar
   }
 
-  lazy val engineSettings: Seq[Setting[_]] = Seq (
+  lazy val engineSettings: Seq[Setting[_]] = inConfig(LWJGL) { Seq (
     // Settings
-    lwjglVersion := "2.7.1",
-    lwjglCopyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
-    lwjglNativesDir <<= (target) { _ / "lwjgl-natives" }, 
-    lwjglOs := defineOs,
+    version := "2.7.1",
+    copyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
+    nativesDir <<= (target) { _ / "lwjgl-natives" }, 
+    os := defineOs,
 
     // Tasks and dependencies
-    lwjglCopy <<= lwjglCopyTask,
-    resourceGenerators in Compile <+= lwjglCopy.identity,
-    lwjglNatives in update <<= lwjglNativesTask,
-    lwjglNatives <<= Seq(update, lwjglNatives in update).dependOn,
-    lwjglClean <<= lwjglCleanTask,
-    cleanFiles <+= lwjglCopyDir.identity,
+    copyNatives <<= lwjglCopyTask,
+    resourceGenerators in Compile <+= copyNatives.identity,
 
+    targetNatives <<= lwjglNativesTask,
+
+    cleanFiles <+= copyDir.identity
+  ) } ++ Seq(
     // Neeed to load LWJGL in java.library.path
     fork := true,
-    javaOptions <+= (lwjglCopyDir, lwjglOs) { (dir, os) => 
+    javaOptions <+= (copyDir in LWJGL, os in LWJGL) { (dir, os) => 
       "-Djava.library.path=%s".format(dir / os._1)
     },
     
     // Project Dependencies
     resolvers += "Diablo-D3" at "http://adterrasperaspera.com/lwjgl",
-    libraryDependencies <++= (lwjglVersion) { v => Seq(
+    libraryDependencies <++= (version in LWJGL) { v => Seq(
       "org.lwjgl" % "lwjgl" % v, 
       "org.lwjgl" % "lwjgl-util" % v 
-    ) }
+    ) },
+
+    update <<= update dependsOn (targetNatives in LWJGL)
   )
 }
