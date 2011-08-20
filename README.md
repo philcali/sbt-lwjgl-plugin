@@ -4,19 +4,16 @@ This is a simple plugin for sbt specifically for [LWJGL] projects. The idea was 
 
 Please visit the [wiki] for more info, roadmap, etc.
 
-**Note:** This plugin was recently migrated over to sbt 0.10, so project migration 
-information will trickle in slowly.
-
 ## Usage
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
     libraryDependencies <+= (sbtVersion) { sv => 
-      "com.github.philcali" %% "sbt-lwjgl-plugin" % ("sbt" + sv + "_3.0.4")
+      "com.github.philcali" %% "sbt-lwjgl-plugin" % ("sbt" + sv + "_3.0.5")
     }
 
 To take advantage of the plugin's settings, you must add `LWJGLProject.engineSettings` either to your build.sbt or build.scala.
-For working in a particular child environment, use one of the satellite settings, ie: `Nicol.engineSettings` or `JMonkey.engineSettings`. 
+For working in a particular child environment, use one of the satellite settings, ie: `Nicol.engineSettings` or `JMonkeyProject.engineSettings`. 
 
 **Or**, you can make use of the giter8 template, to kick off your project.
 
@@ -26,7 +23,8 @@ Once you answer all the appropriate questions, you will have a lwjgl project in 
 
 ## How it works
 
-The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the dependencies, and extracts lwjgl jar to your working lib directory.
+The plugin makes use of public maven repo found at the LWJGL wiki. It pulls the dependencies, and extracts the 
+lwjgl jar containing OS psecific natives to your `managedResource` directory.
 
 **Note for Slick Devs**: You may have to run update twice. The second time will patch an ivy dependency xml to pull the correct phys2d jar.
 
