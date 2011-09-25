@@ -4,11 +4,31 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 import Keys._
-import LWJGLKeys._
 import Project.Initialize
 
-// Base LWJGL support
-object LWJGLProject extends Plugin {
+object LWJGLPlugin extends Plugin {
+  import lwjgl._
+
+  object lwjgl {
+    /** LWJGL Settings */
+    val version = SettingKey[String]("lwjgl-version")
+
+    val copyDir = SettingKey[File]("lwjgl-copy-directory", 
+      "This is where lwjgl resources will be copied")
+
+    val nativesDir = SettingKey[File]("lwjgl-natives-directory", 
+      "This is the location where the lwjgl-natives will bomb to") 
+
+    val os = SettingKey[(String, String)]("lwjgl-os", 
+      "This is the targeted OS for the build. Defaults to the running OS.")
+
+    /** LWJGL Tasks */ 
+    val copyNatives = TaskKey[Seq[File]]("lwjgl-copy-natives", 
+      "Copies the lwjgl library from natives jar to managed resources")
+
+    val manifestNatives = TaskKey[Unit]("lwjgl-manifest-natives", 
+      "Copy LWJGL resources to output directory")
+  }
 
   // Define Tasks
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
@@ -50,7 +70,7 @@ object LWJGLProject extends Plugin {
     }
 
   // Helper methods 
-  private def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
+  def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
     case "lin" => ("linux", "so")
     case "mac" | "dar" => ("macosx", "lib")
     case "win" => ("windows", "dll")
@@ -68,34 +88,34 @@ object LWJGLProject extends Plugin {
     base / "cache" / org / name / "jars" / jar
   }
 
-  lazy val engineSettings: Seq[Setting[_]] = inConfig(LWJGL) { Seq (
-    // Settings
-    version := "2.7.1",
-    copyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
+  lazy val lwjglSettings: Seq[Setting[_]] = baseSettings ++ runSettings
+
+  lazy val baseSettings: Seq[Setting[_]] = Seq (
+    lwjgl.version := "2.7.1",
     nativesDir <<= (target) { _ / "lwjgl-natives" }, 
-    os := defineOs,
 
-    // Tasks and dependencies
-    copyNatives <<= lwjglCopyTask,
-    resourceGenerators in Compile <+= copyNatives.identity,
+    manifestNatives <<= lwjglNativesTask,
+    manifestNatives <<= manifestNatives dependsOn update,
 
-    targetNatives <<= lwjglNativesTask,
-
-    cleanFiles <+= copyDir.identity
-  ) } ++ Seq(
-    // Neeed to load LWJGL in java.library.path
-    fork := true,
-    javaOptions <+= (copyDir in LWJGL, os in LWJGL) { (dir, os) => 
-      "-Djava.library.path=%s".format(dir / os._1)
-    },
-    
-    // Project Dependencies
     resolvers += "Diablo-D3" at "http://adterrasperaspera.com/lwjgl",
-    libraryDependencies <++= (version in LWJGL) { v => Seq(
+    libraryDependencies <++= (lwjgl.version) { v => Seq(
       "org.lwjgl" % "lwjgl" % v, 
       "org.lwjgl" % "lwjgl-util" % v 
-    ) },
+    ) }
+  )
 
-    targetNatives in LWJGL <<= targetNatives in LWJGL dependsOn update
+  lazy val runSettings: Seq[Setting[_]] = Seq (
+    os := defineOs,
+    copyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
+
+    copyNatives <<= lwjglCopyTask,
+    resourceGenerators in Compile <+= copyNatives,
+
+    cleanFiles <+= copyDir,
+
+    fork := true,
+    javaOptions <+= (copyDir, lwjgl.os) { (dir, os) => 
+      "-Djava.library.path=%s".format(dir / os._1)
+    }
   )
 }

@@ -1,13 +1,20 @@
 import sbt._
 
 import Keys._
-import LWJGLKeys._
 import io.Source
 
 /**
  * Slick dependencies
  */
-object Slick2D {
+object Slick2D extends Plugin {
+
+  object slick {
+    val version = SettingKey[String]("slick-version")
+
+    val patch = TaskKey[Unit]("slick-patch", 
+      "The phys2d dependency pom is broken. Patch aims to fix it")
+  }
+
   private def slickPatchTask = (streams, ivyPaths) map { (s, ivys) =>
     val base = ivys.ivyHome.getOrElse(Path.userHome / ".ivy2")
 
@@ -28,19 +35,23 @@ object Slick2D {
     }
   }
 
-  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
-    version in Slick := "274", 
+  lazy val baseSettings: Seq[Setting[_]] = Seq (
+    slick.version := "274",
 
-    patch in Slick <<= slickPatchTask, 
-    update <<= update dependsOn (patch in Slick),
+    slick.patch <<= slickPatchTask,
+
+    update <<= update dependsOn slick.patch,
 
     resolvers ++= Seq (
       "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo",
       "b2srepo" at "http://b2s-repo.googlecode.com/svn/trunk/mvn-repo",
       "Freehep" at "http://java.freehep.org/maven2"
     ),
-    libraryDependencies <+= (version in Slick) {
+    libraryDependencies <+= (slick.version) {
       "slick" % "slick" % _
     }
   )
+
+  lazy val slickSettings: Seq[Setting[_]] = 
+    LWJGLPlugin.lwjglSettings ++ baseSettings
 }

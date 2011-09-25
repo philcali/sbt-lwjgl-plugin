@@ -1,12 +1,15 @@
 import sbt._
 
 import Keys._
-import LWJGLKeys._
 
-object Ardor3D {
-  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ Seq (
+object Ardor3D extends Plugin {
 
-    version in Ardor := "0.8-SNAPSHOT",
+  object ardor {
+    val version = SettingKey[String]("ardor-version")
+  }
+
+  lazy val baseSettings: Seq[Setting[_]] = Seq (
+    ardor.version := "0.8-SNAPSHOT",
 
     resolvers ++= Seq (
       "Ardor3D Maven repo" at 
@@ -17,8 +20,11 @@ object Ardor3D {
       "http://google-maven-repository.googlecode.com/svn/repository/"
     ),
 
-    libraryDependencies <+= (version in Ardor) { 
+    libraryDependencies <+= (ardor.version) { 
       "com.ardor3d" % "ardor3d" % _
     }
   )
+
+  lazy val ardorSettings: Seq[Setting[_]] = 
+    LWJGLPlugin.lwjglSettings ++ baseSettings
 }

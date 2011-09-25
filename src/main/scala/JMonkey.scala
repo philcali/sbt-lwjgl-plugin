@@ -1,7 +1,6 @@
 import sbt._
 
 import Keys._
-import LWJGLKeys._
 
 import java.net.URL
 import java.util.regex.Pattern
@@ -13,7 +12,46 @@ import Helpers._
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
-object JMonkeyProject {
+object JMonkeyProject extends Plugin {
+  import jmonkey._
+
+  object jmonkey {
+    /** JMonkey Settings */
+    val version = SettingKey[String]("jmonkey-version")
+
+    val baseRepo = SettingKey[String]("jmonkey-repo", "jMonkey repo")
+
+    val baseVersion = SettingKey[String]("jmonkey-base-version", 
+      "jMonkey Base Version (jME2 | jME3)")
+
+    val targetVersion = SettingKey[String]("jmonkey-target-version", 
+      "Targeted jMonkey version (2011-04-22)")
+
+    val targetDate = SettingKey[java.util.Date]("jmonkey-target-date",
+      "jMonkey nightly is versioned by a timestamp, use those as well")
+
+    val downloadDir = SettingKey[File]("jmonkey-download-directory",
+      "jMonkey builds will be temporarily stored here.")
+
+    val targetPlatform = SettingKey[String]("jmonkey-target-platform",
+      "Targeted platform (desktop | android)")
+
+    /** JMonkey Tasks */
+    val download = TaskKey[Unit]("jmonkey-download", 
+      "Pulls jMonkey dependency from specified repo.") 
+
+    val install = TaskKey[Unit]("jmonkey-install",
+      "Installs jMonkey lib on local machine")
+
+    val listInstalled = TaskKey[Unit]("jmonkey-list-installed",
+      "Displays any Jmonkey libraries installed on your machine.")
+
+    val cleanLib = TaskKey[Unit]("jmonkey-clean-lib",
+      "Purges the jMonkey install in the cache.")
+
+    val cleanCache = TaskKey[Unit]("jmonkey-clean-cache",
+      "Purges the jMonkey installs in the local cache.")
+  }
 
   private def jmonkeyUpdateTask = 
     (streams, baseVersion, targetVersion, downloadDir, 
@@ -160,9 +198,7 @@ object JMonkeyProject {
   private def createIfNotExists(d: File) = 
     if(!d.exists) IO.createDirectory(d)
 
-  lazy val engineSettings: Seq[Setting[_]] = LWJGLProject.engineSettings ++ 
-    inConfig(JMonkey) { Seq (
-      // Configurable settings
+  lazy val baseSettings: Seq[Setting[_]] = Seq (
       baseRepo := "http://jmonkeyengine.com/nightly",
       baseVersion := "jME3",
       targetDate := new java.util.Date(),
@@ -171,12 +207,11 @@ object JMonkeyProject {
         sdf.format(_)
       },
 
-      version <<= (baseVersion, targetVersion) { "%s_%s".format(_, _) },
+      jmonkey.version <<= (baseVersion, targetVersion) { "%s_%s".format(_, _) },
 
       downloadDir := file(".") / "jmonkeyDownloads",
       targetPlatform := "desktop",
-      
-      // Configurable tasks
+
       download <<= jmonkeyUpdateTask,
       listInstalled <<= jmonkeyLocalTask,
       install <<= jmonkeyCacheTask,
@@ -187,18 +222,20 @@ object JMonkeyProject {
       cleanCache <<= (streams, ivyPaths) map { (s, ivys) => 
         s.log.info("Clearing out %s" format(jmonkeyParentBaseDir(ivys.ivyHome)))
         IO.delete(jmonkeyParentBaseDir(ivys.ivyHome))
-      }
+      },
 
-    ) } ++ Seq(
-      update <<= update dependsOn (install in JMonkey),
+      update <<= update dependsOn install, 
 
-      cleanFiles <+= (downloadDir in JMonkey).identity,
+      cleanFiles <+= downloadDir,
 
       // Create these dependecies for you 
-      libraryDependencies <++= (targetPlatform in JMonkey, baseVersion in JMonkey, targetVersion in JMonkey) { 
+      libraryDependencies <++= (targetPlatform, baseVersion, targetVersion) { 
         (platform, bv, tv) => Seq ( 
           "org.jmonkeyengine" % "jmonkeyengine-%s".format(platform) % jmd(bv, tv) 
         ) 
       }
-    )
+  )
+
+  lazy val jmonkeySettings: Seq[Setting[_]] =
+    LWJGLPlugin.lwjglSettings ++ baseSettings
 }
