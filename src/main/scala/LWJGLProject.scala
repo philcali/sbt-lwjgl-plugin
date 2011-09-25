@@ -38,16 +38,25 @@ object LWJGLPlugin extends Plugin {
 
       val target = dir / tos
 
-      if(target.exists) {
+      if (target.exists) {
         s.log.info("Skipping because of existence: %s" format(target))
         Nil
       } else {
-        val filter = new PatternFilter(Pattern.compile(tos + "/.*" + ext))
+        val nativeLocation = pullNativeJar(lwv, ivys.ivyHome)
 
-        IO.unzip(pullNativeJar(lwv, ivys.ivyHome), dir.asFile, filter)
-  
-        // Return the managed LWJGL resources
-        target * "*" get
+        if (nativeLocation.exists) {
+          val filter = new PatternFilter(Pattern.compile(tos + "/.*" + ext))
+
+          IO.unzip(nativeLocation, dir.asFile, filter)
+    
+          // Return the managed LWJGL resources
+          target * "*" get
+        } else {
+          s.log.warn("""|You do not have the LWJGL natives installed %s.
+                        |Consider requiring LWJGL through LWJGLPlugin.lwjglSettings and running
+                        |again.""".stripMargin.format(nativeLocation))
+          Nil
+        }
       }
     }
 
@@ -91,7 +100,6 @@ object LWJGLPlugin extends Plugin {
   lazy val lwjglSettings: Seq[Setting[_]] = baseSettings ++ runSettings
 
   lazy val baseSettings: Seq[Setting[_]] = Seq (
-    lwjgl.version := "2.7.1",
     nativesDir <<= (target) { _ / "lwjgl-natives" }, 
 
     manifestNatives <<= lwjglNativesTask,
@@ -105,6 +113,8 @@ object LWJGLPlugin extends Plugin {
   )
 
   lazy val runSettings: Seq[Setting[_]] = Seq (
+    lwjgl.version := "2.7.1",
+
     os := defineOs,
     copyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
 
