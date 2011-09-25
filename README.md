@@ -8,9 +8,9 @@ Please visit the [wiki] for more info, roadmap, etc.
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
-    libraryDependencies <+= (sbtVersion) { sv => 
-      "com.github.philcali" %% "sbt-lwjgl-plugin" % ("sbt" + sv + "_3.0.5")
-    }
+```
+addSbtPlugin("com.github.philcali" % "sbt-lwjgl-plugin" % "3.0.6")
+```
 
 To take advantage of the plugin's settings, you must add `LWJGLProject.engineSettings` either to your build.sbt or build.scala.
 For working in a particular child environment, use one of the satellite settings, ie: `Nicol.engineSettings` or `JMonkeyProject.engineSettings`. 
