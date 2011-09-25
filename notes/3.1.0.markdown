@@ -1,0 +1,2 @@
+* Added `runSettings`, which allows for LWJGL native copying.
+* Upgraded codebase to sbt 0.11.0

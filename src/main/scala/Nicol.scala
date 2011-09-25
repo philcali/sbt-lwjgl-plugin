@@ -2,13 +2,20 @@ import sbt._
 
 import Keys._
 
-object Nicol {
+object Nicol extends Plugin {
 
-  lazy val engineSettings = LWJGLProject.engineSettings ++ Seq (
-    version in LWJGLKeys.Nicol := "0.1.0.1",
+  object nicol {
+    val version = SettingKey[String]("nicol-version")
+  }
 
-    libraryDependencies <+= (version in LWJGLKeys.Nicol) {
+  lazy val baseSettings: Seq[Setting[_]] = Seq (
+    nicol.version := "0.1.0.1",
+
+    libraryDependencies <+= (nicol.version) {
       "com.github.scan" %% "nicol" % _
     }
   )
+
+  lazy val nicolSettings: Seq[Setting[_]] =
+    LWJGLPlugin.lwjglSettings ++ baseSettings
 }
