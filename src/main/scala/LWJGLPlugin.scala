@@ -92,7 +92,7 @@ object LWJGLPlugin extends Plugin {
   // Helper methods 
   def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
     case "lin" => ("linux", "so")
-    case "mac" | "dar" => ("macosx", "lib")
+    case "mac" | "dar" => ("osx", "lib")
     case "win" => ("windows", "dll")
     case "sun" => ("solaris", "so")
     case _ => ("unknown", "")
@@ -100,7 +100,7 @@ object LWJGLPlugin extends Plugin {
 
   private def pullNativeJar(org: String, name: String, v: String, os: String, ivyHome: Option[File]) = { 
     val correct = (f: File) => 
-      f.getName == "%s-%s-natives-%s".format(name, v, os)
+      f.getName == "%s-%s-natives-%s.jar".format(name, v, os)
 
     val base = ivyHome.getOrElse(Path.userHome / ".ivy2")
 
