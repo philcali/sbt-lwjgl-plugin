@@ -7,7 +7,16 @@
 * `lwjgl.nativesName` setting is available, and now points to `lwjgl-platform`
 * `lwjgl.utilsName` setting is available, and now points to `lwjgl_util`
 
+## Updates about updating
+
+Updating to the latest version should be as easy as changing the
+plugin's version in your `plugins.sbt`. When in the sbt console, run
+a `clean`, to remove the old lwjgl natives. 
+
 ## Backward compatibility notes
 
 `resolvers += "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"` has been removed.
 This means that the plugin now pulls from maven central.
+
+For forward compatibility's sake, the Macintosh OS is now identified as `osx`, instead
+of `macosx`.
