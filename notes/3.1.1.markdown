@@ -1,0 +1,8 @@
+* `LWJGLPlugin` can now handle multiple versions
+* `JMonkeyProject` can now resume nightly downloads
+
+## New Settings in LWJGLPlugin
+
+* `lwjgl.org` setting is available, and now points to `org.lwjgl.lwjgl`
+* `lwjgl.nativesName` setting is available, and now points to `lwjgl-platform`
+* `lwjgl.utilsName` setting is available, and now points to `lwjgl_util`
