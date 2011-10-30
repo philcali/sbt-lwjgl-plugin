@@ -52,7 +52,7 @@ object LWJGLPlugin extends Plugin {
         s.log.info("Skipping because of existence: %s" format(target))
         Nil
       } else {
-        val nativeLocation = pullNativeJar(org, nativesName, version, ivys.ivyHome)
+        val nativeLocation = pullNativeJar(org, nativesName, version, tos, ivys.ivyHome)
 
         if (nativeLocation.exists) {
           val filter = new PatternFilter(Pattern.compile(".*" + ext))
@@ -71,10 +71,10 @@ object LWJGLPlugin extends Plugin {
     }
 
   private def lwjglNativesTask =
-    (streams, nativesDir, org, nativesName, version, ivyPaths) map {
-      (s, outDir, org, nativesName, version, ivys) =>
+    (streams, nativesDir, org, nativesName, version, os, ivyPaths) map {
+      (s, outDir, org, nativesName, version, os, ivys) =>
       val unzipTo = file(".") / "natives-cache"
-      val lwjglN = pullNativeJar(org, nativesName, version, ivys.ivyHome)
+      val lwjglN = pullNativeJar(org, nativesName, version, os._1, ivys.ivyHome)
 
       s.log.info("Unzipping the native jar")
       IO.unzip(lwjglN, unzipTo)
@@ -98,8 +98,9 @@ object LWJGLPlugin extends Plugin {
     case _ => ("unknown", "")
   }
 
-  private def pullNativeJar(org: String, name: String, v: String, ivyHome: Option[File]) = { 
-    val correct = (f: File) => f.getName.contains(v)
+  private def pullNativeJar(org: String, name: String, v: String, os: String, ivyHome: Option[File]) = { 
+    val correct = (f: File) => 
+      f.getName == "%s-%s-natives-%s".format(name, v, os)
 
     val base = ivyHome.getOrElse(Path.userHome / ".ivy2")
 
@@ -125,11 +126,13 @@ object LWJGLPlugin extends Plugin {
     manifestNatives <<= lwjglNativesTask,
     manifestNatives <<= manifestNatives dependsOn update,
 
-    libraryDependencies <++= (lwjgl.version, lwjgl.org, lwjgl.utilsName) { 
-      (v, org, utils) => Seq (
-      org % "lwjgl" % v,
-      org % utils % v 
-    ) }
+    libraryDependencies <++=
+      (lwjgl.version, lwjgl.org, lwjgl.utilsName, lwjgl.os) { 
+        (v, org, utils, os) => Seq (
+        org % "lwjgl" % v,
+        org % "lwjgl-platform" % v classifier "natives-%s".format(os._1),
+        org % utils % v 
+      ) }
   )
 
   lazy val runSettings: Seq[Setting[_]] = Seq (
