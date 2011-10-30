@@ -6,3 +6,8 @@
 * `lwjgl.org` setting is available, and now points to `org.lwjgl.lwjgl`
 * `lwjgl.nativesName` setting is available, and now points to `lwjgl-platform`
 * `lwjgl.utilsName` setting is available, and now points to `lwjgl_util`
+
+## Backward compatibility notes
+
+`resolvers += "Diablo-D3" at "http://adterrasperaspera.com/lwjgl"` has been removed.
+This means that the plugin now pulls from maven central.
