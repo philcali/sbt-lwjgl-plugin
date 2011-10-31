@@ -1,2 +1,3 @@
 * Added `runSettings`, which allows for LWJGL native copying.
+* Renamed all `engineSettings` to {satellite name}`Settings`, ie: `lwjglSettings`
 * Upgraded codebase to sbt 0.11.0
