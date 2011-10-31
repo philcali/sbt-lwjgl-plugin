@@ -4,6 +4,11 @@ This is a simple plugin for sbt specifically for [LWJGL] projects. The idea was 
 
 Please visit the [wiki] for more info, roadmap, etc.
 
+## Version Note
+
+Plugin versions 3.0.x are available for sbt version 0.10.x. Plugin version numbers >= 3.1.x
+are available to sbt versions >= 0.11.x.
+
 ## Usage
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
