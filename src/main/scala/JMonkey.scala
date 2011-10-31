@@ -7,6 +7,8 @@ import java.util.regex.Pattern
 
 import Helpers._
 
+import dispatch.{Http, url => dUrl}
+
 /**
  * JMonkey, unfortunately, does not have a public maven repo
  * We are going to hack the dependency by pulling down their
@@ -14,6 +16,8 @@ import Helpers._
  */
 object JMonkeyProject extends Plugin {
   import jmonkey._
+
+  val http = new Http
 
   object jmonkey {
     /** JMonkey Settings */
@@ -25,7 +29,7 @@ object JMonkeyProject extends Plugin {
       "jMonkey Base Version (jME2 | jME3)")
 
     val targetVersion = SettingKey[String]("jmonkey-target-version", 
-      "Targeted jMonkey version (2011-04-22)")
+      "Targeted jMonkey version (yyyy-mm-dd)")
 
     val targetDate = SettingKey[java.util.Date]("jmonkey-target-date",
       "jMonkey nightly is versioned by a timestamp, use those as well")
@@ -35,6 +39,9 @@ object JMonkeyProject extends Plugin {
 
     val targetPlatform = SettingKey[String]("jmonkey-target-platform",
       "Targeted platform (desktop | android)")
+
+    val userAgent = SettingKey[String]("jmonkey-downloader-user-agent",
+      "Use this user agent when downloading from nightly.")
 
     /** JMonkey Tasks */
     val download = TaskKey[Unit]("jmonkey-download", 
@@ -55,8 +62,8 @@ object JMonkeyProject extends Plugin {
 
   private def jmonkeyUpdateTask = 
     (streams, baseVersion, targetVersion, downloadDir, 
-     baseRepo, version, ivyPaths) map { 
-      (s, bv, tv, dd, baseRepo, jmonkeyName, ivyPaths) =>
+     baseRepo, version, userAgent, ivyPaths) map { 
+      (s, bv, tv, dd, baseRepo, jmonkeyName, userAgent, ivyPaths) =>
 
       val cacheDir = jmonkeyCacheDir("desktop", bv, tv, ivyPaths.ivyHome)
 
@@ -73,11 +80,15 @@ object JMonkeyProject extends Plugin {
           val zip = "%s.zip" format(jmonkeyName) 
           val zipFile = new java.io.File(zip)
 
-          val url = new URL("%s/%s" format(baseRepo, zip))
+          val jmUrl = dUrl(baseRepo) / zip
+
+          val zipStream = new java.io.FileOutputStream(zipFile)
+ 
           // Start the download
           s.log.info("Downloading %s ..." format(jmonkeyName))
           s.log.warn("This may take a few minutes...")
-          IO.download(url, zipFile)
+
+          http((jmUrl <:< Map("User-Agent" -> userAgent)) >>> zipStream)
           
           // Extract the lib dir only...
           val dest = dd / jmonkeyName 
@@ -108,7 +119,7 @@ object JMonkeyProject extends Plugin {
 
           // jMonkey libs we're interested in 
           val interest = "jMonkeyEngine%s".format(jme(bv))
-          val common = baselib * "*.jar" --- (exclude) +++ (base / "opt" ** "*natives.jar")
+          val common = baselib * "*.jar" --- (exclude) +++ (base / "opt" ** "%s-bullet*".format(bv))
       
           // Different jMonkey jars for platform 
           val desktop = base * "%s.jar".format(interest)
@@ -205,6 +216,17 @@ object JMonkeyProject extends Plugin {
       targetVersion <<= (targetDate) {
         val sdf = new java.text.SimpleDateFormat("yyyy-MM-dd")
         sdf.format(_)
+      },
+
+      userAgent <<= (version, LWJGLPlugin.lwjgl.os) { (v, os) => 
+        val operating = os match {
+          case ("macosx", _) => "Macintosh"
+          case ("windows", _) => "Windows"
+          case ("linux", _) => "Linux"
+          case ("solaris", _) => "Sun Solaris"
+          case _ => "Unknown"
+        } 
+        "Mozilla/5.0 (compatible; jMonkeyDownloader %s; %s)" format(v, operating)
       },
 
       jmonkey.version <<= (baseVersion, targetVersion) { "%s_%s".format(_, _) },
