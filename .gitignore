@@ -1,4 +1,5 @@
 .DS*
+.history
 lib*
 target*
 project/boot
