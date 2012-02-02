@@ -28,8 +28,14 @@ object LWJGLPlugin extends Plugin {
     val nativesName = SettingKey[String]("lwjgl-natives-name",
       "Name of the natives artifact to extract.")
 
+    val nativesJarName = SettingKey[String]("lwjgl-natives-jar-name",
+      "This name will be used to pull the specific jar for loading the runtime.")
+
     val utilsName = SettingKey[String]("lwjgl-utils-name",
       "Name of the utils artifact.")
+
+    val includePlatform = SettingKey[Boolean]("lwjgl-include-platform",
+      "Include the platform dependency... Do not if using the old method")
 
     /** LWJGL Tasks */ 
     val copyNatives = TaskKey[Seq[File]]("lwjgl-copy-natives", 
@@ -41,8 +47,8 @@ object LWJGLPlugin extends Plugin {
 
   // Define Tasks
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
-    (streams, copyDir, org, nativesName, version, os, ivyPaths) map { 
-      (s, dir, org, nativesName, version, dos, ivys) =>
+    (streams, copyDir, org, nativesName, nativesJarName, os, ivyPaths) map { 
+      (s, dir, org, nativesName, jarName, dos, ivys) =>
       val (tos, ext) = dos 
       s.log.info("Copying files for %s" format(tos))
 
@@ -52,7 +58,7 @@ object LWJGLPlugin extends Plugin {
         s.log.info("Skipping because of existence: %s" format(target))
         Nil
       } else {
-        val nativeLocation = pullNativeJar(org, nativesName, version, tos, ivys.ivyHome)
+        val nativeLocation = pullNativeJar(org, nativesName, jarName, ivys.ivyHome)
 
         if (nativeLocation.exists) {
           val filter = new PatternFilter(Pattern.compile(".*" + ext))
@@ -71,10 +77,10 @@ object LWJGLPlugin extends Plugin {
     }
 
   private def lwjglNativesTask =
-    (streams, nativesDir, org, nativesName, version, os, ivyPaths) map {
-      (s, outDir, org, nativesName, version, os, ivys) =>
+    (streams, nativesDir, org, nativesName, nativesJarName, ivyPaths) map {
+      (s, outDir, org, nativesName, jarName, ivys) =>
       val unzipTo = file(".") / "natives-cache"
-      val lwjglN = pullNativeJar(org, nativesName, version, os._1, ivys.ivyHome)
+      val lwjglN = pullNativeJar(org, nativesName, jarName, ivys.ivyHome)
 
       s.log.info("Unzipping the native jar")
       IO.unzip(lwjglN, unzipTo)
@@ -98,9 +104,9 @@ object LWJGLPlugin extends Plugin {
     case _ => ("unknown", "")
   }
 
-  private def pullNativeJar(org: String, name: String, v: String, os: String, ivyHome: Option[File]) = { 
-    val correct = (f: File) => 
-      f.getName == "%s-%s-natives-%s.jar".format(name, v, os)
+  private def pullNativeJar(org: String, name: String, jarName: String, ivyHome: Option[File]) = { 
+    val correct = (f: File) =>
+      f.getName == "%s.jar".format(jarName)
 
     val base = ivyHome.getOrElse(Path.userHome / ".ivy2")
 
@@ -117,22 +123,26 @@ object LWJGLPlugin extends Plugin {
   lazy val lwjglSettings: Seq[Setting[_]] = baseSettings ++ runSettings
 
   lazy val baseSettings: Seq[Setting[_]] = Seq (
+    lwjgl.includePlatform := true,
+
     lwjgl.org := "org.lwjgl.lwjgl",
 
     lwjgl.utilsName := "lwjgl_util",
 
-    nativesDir <<= (target) { _ / "lwjgl-natives" }, 
+    nativesDir <<= (target) (_ / "lwjgl-natives"),
 
     manifestNatives <<= lwjglNativesTask,
     manifestNatives <<= manifestNatives dependsOn update,
 
     libraryDependencies <++=
-      (lwjgl.version, lwjgl.org, lwjgl.utilsName, lwjgl.os) { 
-        (v, org, utils, os) => Seq (
-        org % "lwjgl" % v,
-        org % "lwjgl-platform" % v classifier "natives-%s".format(os._1),
-        org % utils % v 
-      ) }
+      (lwjgl.version, lwjgl.org, lwjgl.utilsName, lwjgl.os, lwjgl.includePlatform) { 
+        (v, org, utils, os, isNew) => 
+        val deps = Seq(org % "lwjgl" % v, org % utils % v)
+
+        if (isNew) 
+          deps ++ Seq(org % "lwjgl-platform" % v classifier "natives-" + (os._1))
+        else deps
+      }
   )
 
   lazy val runSettings: Seq[Setting[_]] = Seq (
@@ -140,8 +150,12 @@ object LWJGLPlugin extends Plugin {
 
     lwjgl.nativesName := "lwjgl-platform",
 
-    os := defineOs,
-    copyDir <<= (resourceManaged in Compile) { _ / "lwjgl-resources" },
+    lwjgl.nativesJarName <<= (lwjgl.nativesName, lwjgl.version, lwjgl.os) {
+      _ + "-" + _ + "-natives-" + _._1
+    },
+
+    lwjgl.os := defineOs,
+    copyDir <<= (resourceManaged in Compile) (_ / "lwjgl-resources"),
 
     copyNatives <<= lwjglCopyTask,
     resourceGenerators in Compile <+= copyNatives,
@@ -153,4 +167,21 @@ object LWJGLPlugin extends Plugin {
       "-Djava.library.path=%s".format(dir / os._1)
     }
   )
+
+  lazy val oldLwjglSettings: Seq[Setting[_]] = lwjglSettings ++ Seq (
+    resolvers += "Diablo-D3" at "http://adterrasperaspera.com/lwjgl",
+
+    lwjgl.nativesName := "lwjgl-native",
+
+    lwjgl.nativesJarName <<= (lwjgl.nativesName, lwjgl.version) (_ + "-" + _),
+
+    lwjgl.version := "2.7.1",
+
+    lwjgl.org := "org.lwjgl",
+
+    lwjgl.utilsName := "lwjgl-util",
+
+    lwjgl.includePlatform := false
+  )
+
 }
