@@ -53,5 +53,5 @@ object Slick2D extends Plugin {
   )
 
   lazy val slickSettings: Seq[Setting[_]] = 
-    LWJGLPlugin.oldLwjglSettings ++ baseSettings
+    LWJGLPlugin.lwjglSettings ++ baseSettings
 }

@@ -17,8 +17,6 @@ import dispatch.{Http, url => dUrl}
 object JMonkeyProject extends Plugin {
   import jmonkey._
 
-  val http = new Http
-
   object jmonkey {
     /** JMonkey Settings */
     val version = SettingKey[String]("jmonkey-version")
@@ -72,6 +70,8 @@ object JMonkeyProject extends Plugin {
         case true => 
           s.log.info("Already have %s" format(jmonkeyName))
         case false =>
+          val http = new Http
+
           // If they wanted a nightly build then this could get extreme
           s.log.info("Cleaning older versions of %s" format(bv))
           val previousVersions = dd * "%s*".format(bv) 
@@ -89,7 +89,8 @@ object JMonkeyProject extends Plugin {
           s.log.warn("This may take a few minutes...")
 
           http((jmUrl <:< Map("User-Agent" -> userAgent)) >>> zipStream)
-          
+          http.shutdown()
+ 
           // Extract the lib dir only...
           val dest = dd / jmonkeyName 
           val filter = new PatternFilter(Pattern.compile(".*jar"))
@@ -115,15 +116,26 @@ object JMonkeyProject extends Plugin {
           // Get the jmonkey libs except those...
           val base = dd / jname
           val baselib = base / "lib"
-          val exclude = baselib * "*test*" +++ (baselib * "lwjgl.jar") +++ (baselib * "*examples*")
+          val exclude = baselib * "*test*" +++
+            (baselib * "lwjgl.jar") +++
+            (baselib * "*examples*") +++
+            (baselib * "*-desktop.jar")
 
           // jMonkey libs we're interested in 
           val interest = "jMonkeyEngine%s".format(jme(bv))
-          val common = baselib * "*.jar" --- (exclude) +++ (base / "opt" ** "%s-bullet*".format(bv))
+
+          val commonJar = base * "%s.jar".format(interest)
+
+          val common = baselib * "*.jar" ---
+            (exclude) +++ commonJar +++
+            (base / "opt" / "native-bullet" * "%s-bullet.jar".format(bv))
       
           // Different jMonkey jars for platform 
-          val desktop = base * "%s.jar".format(interest)
-          val android = base / "opt" ** "%s.jar".format(interest)
+          val desktop = baselib / "%s-desktop.jar".format(bv)
+          val android = (
+            base / "opt" / "android" * "*-android.jar" +++
+            base / "opt" / "native-bullet" * "*-android.jar"
+          )
 
           val platforms = List("desktop", "android")
 
