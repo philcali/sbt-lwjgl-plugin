@@ -8,7 +8,7 @@ organization := "com.github.philcali"
 
 version := "3.1.2"
 
-libraryDependencies += "net.databinder" %% "dispatch-http" % "0.8.5"
+libraryDependencies += "net.databinder" %% "dispatch-http" % "0.8.7"
 
 publishTo <<= version { v =>
   val nexus = "https://oss.sonatype.org"
