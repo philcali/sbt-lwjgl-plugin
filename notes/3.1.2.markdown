@@ -1,0 +1,15 @@
+- `LWJGLPlugin` properly handles older versions
+- `JMonkeyProject` now handles new directory structure
+- jMonkey downloader reports progress [#24](https://github.com/philcali/sbt-lwjgl-plugin/issues/24)
+- slick2d pulls proper lwjgl version [#25](https://github.com/philcali/sbt-lwjgl-plugin/issues/25)
+
+## jMonkey Notes
+
+Now that the jMonkey team has a public maven for their releases, use the
+`JMonkeyProject` settings only if you want to build against nightly.
+
+## Notes about updating
+
+Updating to the latest version should be as easy as changing the
+plugin's version in your `plugins.sbt`. When in the sbt console, run
+`clean`, to remove the old lwjgl natives. 
