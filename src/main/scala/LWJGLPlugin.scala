@@ -146,7 +146,7 @@ object LWJGLPlugin extends Plugin {
   )
 
   lazy val runSettings: Seq[Setting[_]] = Seq (
-    lwjgl.version := "2.8.1",
+    lwjgl.version := "2.8.3",
 
     lwjgl.nativesName := "lwjgl-platform",
 
