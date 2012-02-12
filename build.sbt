@@ -11,9 +11,11 @@ version := "3.1.2"
 libraryDependencies += "net.databinder" %% "dispatch-http" % "0.8.7"
 
 publishTo <<= version { v =>
-  val nexus = "https://oss.sonatype.org"
-  if (v.trim.endsWith("SNAPSHOT")) Some("snapshots" at nexus + "content/repositories/snapshots")
-  else Some("releases" at nexus + "service/local/staging/deploy/maven2")
+  val nexus = "https://oss.sonatype.org/"
+  if (v.trim.endsWith("SNAPSHOT"))
+    Some("snapshots" at nexus + "content/repositories/snapshots")
+  else
+    Some("releases" at nexus + "service/local/staging/deploy/maven2")
 }
 
 publishMavenStyle := true

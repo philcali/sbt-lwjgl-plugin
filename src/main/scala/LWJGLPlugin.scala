@@ -64,6 +64,11 @@ object LWJGLPlugin extends Plugin {
           val filter = new PatternFilter(Pattern.compile(".*" + ext))
 
           IO.unzip(nativeLocation, target.asFile, filter)
+
+          // House keeping - to be used in old method
+          (target / tos * "*").get foreach { f =>
+            IO.copyFile(f, target / f.name)
+          }
     
           // Return the managed LWJGL resources
           target * "*" get
