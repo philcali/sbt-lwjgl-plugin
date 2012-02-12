@@ -5,6 +5,12 @@ import Keys._
 import java.net.URL
 import java.util.regex.Pattern
 
+import java.io.{
+  InputStream,
+  OutputStream,
+  FileOutputStream
+}
+
 import Helpers._
 
 import dispatch.{Http, url => dUrl}
@@ -16,8 +22,6 @@ import dispatch.{Http, url => dUrl}
  */
 object JMonkeyProject extends Plugin {
   import jmonkey._
-
-  val http = new Http
 
   object jmonkey {
     /** JMonkey Settings */
@@ -72,6 +76,8 @@ object JMonkeyProject extends Plugin {
         case true => 
           s.log.info("Already have %s" format(jmonkeyName))
         case false =>
+          val http = new Http
+
           // If they wanted a nightly build then this could get extreme
           s.log.info("Cleaning older versions of %s" format(bv))
           val previousVersions = dd * "%s*".format(bv) 
@@ -82,14 +88,33 @@ object JMonkeyProject extends Plugin {
 
           val jmUrl = dUrl(baseRepo) / zip
 
-          val zipStream = new java.io.FileOutputStream(zipFile)
- 
           // Start the download
           s.log.info("Downloading %s ..." format(jmonkeyName))
           s.log.warn("This may take a few minutes...")
 
-          http((jmUrl <:< Map("User-Agent" -> userAgent)) >>> zipStream)
-          
+          http((jmUrl <:< Map("User-Agent" -> userAgent)) >:+ { (headers, req) =>
+            req >> { (ins: InputStream) =>
+              val length = headers("content-length").head.toDouble
+              val bytes = new Array[Byte](1024)
+
+              def pump(in: InputStream, out: OutputStream, a: Long = 0, t: Int = 5) {
+                in.read(bytes) match {
+                  case n if n > 0 =>
+                    val newAmount = a + n
+                    val inc = if ((newAmount / length) * 100 >= t) {
+                      s.log.info("Downloaded " + t + "%")
+                      t + 5
+                    } else t
+                    out.write(bytes, 0, n); pump(in, out, newAmount, inc)
+                  case _ => in.close(); out.close()
+                }              
+              }
+              pump(ins, new FileOutputStream(zipFile))
+            }
+          })
+          http.shutdown()
+          s.log.info("Downloaded 100%")
+
           // Extract the lib dir only...
           val dest = dd / jmonkeyName 
           val filter = new PatternFilter(Pattern.compile(".*jar"))
@@ -115,15 +140,21 @@ object JMonkeyProject extends Plugin {
           // Get the jmonkey libs except those...
           val base = dd / jname
           val baselib = base / "lib"
-          val exclude = baselib * "*test*" +++ (baselib * "lwjgl.jar") +++ (baselib * "*examples*")
+          val exclude = baselib * "*test*" +++
+            (baselib * "lwjgl.jar") +++
+            (baselib * "*examples*") +++
+            (baselib * "*-desktop.jar")
 
           // jMonkey libs we're interested in 
-          val interest = "jMonkeyEngine%s".format(jme(bv))
-          val common = baselib * "*.jar" --- (exclude) +++ (base / "opt" ** "%s-bullet*".format(bv))
+          val commonJar = base * "jMonkeyEngine%s.jar".format(jme(bv))
+
+          val common = baselib * "*.jar" ---
+            (exclude) +++ commonJar +++
+            (base / "opt" / "native-bullet" * "%s-bullet.jar".format(bv))
       
           // Different jMonkey jars for platform 
-          val desktop = base * "%s.jar".format(interest)
-          val android = base / "opt" ** "%s.jar".format(interest)
+          val desktop = baselib / "%s-desktop.jar".format(bv)
+          val android = base / "opt" / "android" * "*-android.jar"
 
           val platforms = List("desktop", "android")
 
@@ -134,8 +165,8 @@ object JMonkeyProject extends Plugin {
             val poms = cacheDir / "poms"
 
             // Build parents first
-            s.log.info("Installing %s" format(jname))
-            val children = common.get.map (_.base) ++ Seq("%s-%s".format(interest, platform))
+            s.log.info("Installing %s-%s" format(jname, platform))
+            val children = common.get.map(_.base) ++ Seq("%s-%s".format(bv, platform))
             val module = "jmonkeyengine-%s".format(platform)
 
             val parentPom = pomMe(org, module, revision, children)
@@ -160,11 +191,11 @@ object JMonkeyProject extends Plugin {
 
           // Write these individually
           val handler = (platform: String) => (f: File) => {
-            val newName = "%s-%s".format(f.base, platform)
+            val newName = "%s-%s".format(bv, platform)
             val childCache = cacheBase / newName / revision
             
             val civy = ivyMe(org, newName, revision, newName, pub)
-            IO.write(childCache / "ivy" / "ivy.xml" asFile, civy)
+            IO.write(childCache / "ivys" / "ivy.xml" asFile, civy)
             IO.copyFile(f, childCache / "jars" / (newName + ".jar"))
           }
 
