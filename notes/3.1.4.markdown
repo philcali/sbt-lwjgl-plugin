@@ -1,0 +1,1 @@
+- Slick plugin now has `slick-local-jnlp` for when Freehep is down.
