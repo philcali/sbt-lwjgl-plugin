@@ -6,7 +6,7 @@ name := "sbt-lwjgl-plugin"
 
 organization := "com.github.philcali"
 
-version := "3.1.3"
+version := "3.1.4"
 
 libraryDependencies += "net.databinder" %% "dispatch-http" % "0.8.8"
 

@@ -11,6 +11,9 @@ object Slick2D extends Plugin {
   object slick {
     val version = SettingKey[String]("slick-version")
 
+    val localJnlp = TaskKey[Unit]("slick-local-jnlp",
+      "If the freehep repo is down, then write jnlp to ivy cache.")
+
     val patch = TaskKey[Unit]("slick-patch", 
       "The phys2d dependency pom is broken. Patch aims to fix it")
   }
@@ -35,12 +38,35 @@ object Slick2D extends Plugin {
     }
   }
 
+  private def localJnlpTask = (streams, ivyPaths) map { (s, ivys) =>
+    val base = ivys.ivyHome.getOrElse(Path.userHome / ".ivy2")
+
+    val jnlpBase = base / "cache" / "javax.jnlp" / "jnlp"
+
+    val jnlp = jnlpBase / "ivy-1.2.xml"
+
+    if (jnlp.exists) {
+      s.log.info("jnlp dependency already exists in cache.")
+    } else {
+      val x = Helpers.ivyMe("javax.jnlp", "jnlp", "1.2", "jnlp", "20051013174638")
+
+      val jar = jnlpBase / "jars" / "jnlp-1.2.jar"
+
+      IO.write(jnlp, x.toString)
+      IO.transfer(getClass.getResourceAsStream("/jnlp-1.2.jar"), jar)
+
+      s.log.info("jnlp installed.")
+    }
+  }
+
   lazy val baseSettings: Seq[Setting[_]] = Seq (
     slick.version := "274",
 
     slick.patch <<= slickPatchTask,
 
-    update <<= update dependsOn slick.patch,
+    slick.localJnlp <<= localJnlpTask,
+
+    update <<= update dependsOn (slick.patch, slick.localJnlp),
 
     resolvers ++= Seq (
       "Slick2D Maven Repo" at "http://slick.cokeandcode.com/mavenrepo",
