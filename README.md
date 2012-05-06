@@ -9,7 +9,7 @@ Please visit the [wiki] for more info, roadmap, etc.
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
 
 ```
-addSbtPlugin("com.github.philcali" % "sbt-lwjgl-plugin" % "3.1.3")
+addSbtPlugin("com.github.philcali" % "sbt-lwjgl-plugin" % "3.1.4")
 ```
 
 To take advantage of the plugin's settings, you must add `LWJGLPlugin.lwjglSettings` either to your build.sbt or build.scala.
