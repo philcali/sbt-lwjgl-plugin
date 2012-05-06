@@ -1,1 +1,3 @@
-- Slick plugin now has `slick-local-jnlp` for when Freehep is down.
+- Slick plugin now has `slick-local-jnlp` for when the Freehep repo is down.
+- Upgraded dispatch version to latest
+- Released for 0.11.2 and 0.11.3
