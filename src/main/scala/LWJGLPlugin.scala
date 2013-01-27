@@ -103,7 +103,7 @@ object LWJGLPlugin extends Plugin {
   // Helper methods 
   def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
     case "lin" => ("linux", "so")
-    case "mac" | "dar" => ("osx", "lib")
+    case "mac" | "dar" => ("macosx", "lib")
     case "win" => ("windows", "dll")
     case "sun" => ("solaris", "so")
     case _ => ("unknown", "")
@@ -168,7 +168,7 @@ object LWJGLPlugin extends Plugin {
     cleanFiles <+= copyDir,
 
     fork := true,
-    javaOptions <+= (copyDir, lwjgl.os) { (dir, os) => 
+    javaOptions <+= (copyDir, lwjgl.os).map{ (dir, os) => 
       "-Djava.library.path=%s".format(dir / os._1)
     }
   )
