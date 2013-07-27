@@ -5,6 +5,7 @@ import java.io.{ FileNotFoundException, FileOutputStream }
 
 import Keys._
 import Project.Initialize
+import util.Properties
 
 object LWJGLPlugin extends Plugin {
   import lwjgl._
@@ -49,8 +50,14 @@ object LWJGLPlugin extends Plugin {
   private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
     (streams, copyDir, org, nativesName, nativesJarName, os, ivyPaths) map { 
       (s, dir, org, nativesName, jarName, dos, ivys) =>
-      val (tos, ext) = dos 
-      s.log.info("Copying files for %s" format(tos))
+      val (tos, ext) = dos
+      val endness = Properties
+        .propOrNone("os.arch")
+        .filter(_.contains("64"))
+        .map(_ => "64")
+        .getOrElse("")
+
+      s.log.info("Copying files for %s%s" format(tos, endness))
 
       val target = dir / tos
 
@@ -61,7 +68,7 @@ object LWJGLPlugin extends Plugin {
         val nativeLocation = pullNativeJar(org, nativesName, jarName, ivys.ivyHome)
 
         if (nativeLocation.exists) {
-          val filter = new PatternFilter(Pattern.compile(".*" + ext))
+          val filter = new SimpleFilter(_.endsWith(".%s" format(ext)))
 
           IO.unzip(nativeLocation, target.asFile, filter)
 
@@ -69,7 +76,7 @@ object LWJGLPlugin extends Plugin {
           (target / tos * "*").get foreach { f =>
             IO.copyFile(f, target / f.name)
           }
-    
+
           // Return the managed LWJGL resources
           target * "*" get
         } else {
@@ -169,7 +176,7 @@ object LWJGLPlugin extends Plugin {
 
     fork := true,
     javaOptions <+= (copyDir, lwjgl.os).map{ (dir, os) => 
-      "-Djava.library.path=%s".format(dir / os._1)
+      "-Dorg.lwjgl.librarypath=%s".format(dir / os._1)
     }
   )
 
