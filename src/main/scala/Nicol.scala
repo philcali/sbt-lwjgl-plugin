@@ -2,7 +2,7 @@ import sbt._
 
 import Keys._
 
-object Nicol extends Plugin {
+object Nicol {
 
   object nicol {
     val version = SettingKey[String]("nicol-version")

@@ -13,14 +13,16 @@ import java.io.{
 
 import Helpers._
 
-import dispatch.{Http, url => dUrl}
+import scala.language.postfixOps
+import dispatch._, dispatch.Defaults._
+import dispatch.{url => dUrl}
 
 /**
  * JMonkey, unfortunately, does not have a public maven repo
  * We are going to hack the dependency by pulling down their
  * nightly builds and extracting the dependecies we need.
  */
-object JMonkeyProject extends Plugin {
+object JMonkeyProject {
   import jmonkey._
 
   object jmonkey {
@@ -76,8 +78,6 @@ object JMonkeyProject extends Plugin {
         case true => 
           s.log.info("Already have %s" format(jmonkeyName))
         case false =>
-          val http = new Http
-
           // If they wanted a nightly build then this could get extreme
           s.log.info("Cleaning older versions of %s" format(bv))
           val previousVersions = dd * "%s*".format(bv) 
@@ -92,9 +92,9 @@ object JMonkeyProject extends Plugin {
           s.log.info("Downloading %s ..." format(jmonkeyName))
           s.log.warn("This may take a few minutes...")
 
-          http((jmUrl <:< Map("User-Agent" -> userAgent)) >:+ { (headers, req) =>
-            req >> { (ins: InputStream) =>
-              val length = headers("content-length").head.toDouble
+          Http(jmUrl <:< Map("User-Agent" -> userAgent) > {
+            res =>
+              val length = res.getHeader("Content-Length").toDouble
               val bytes = new Array[Byte](1024)
 
               def pump(in: InputStream, out: OutputStream, a: Long = 0, t: Int = 5) {
@@ -107,12 +107,11 @@ object JMonkeyProject extends Plugin {
                     } else t
                     out.write(bytes, 0, n); pump(in, out, newAmount, inc)
                   case _ => in.close(); out.close()
-                }              
+                }
               }
-              pump(ins, new FileOutputStream(zipFile))
-            }
-          })
-          http.shutdown()
+              pump(res.getResponseBodyAsStream(), new FileOutputStream(zipFile))
+          }).apply()
+          Http.shutdown()
           s.log.info("Downloaded 100%")
 
           // Extract the lib dir only...
@@ -122,7 +121,7 @@ object JMonkeyProject extends Plugin {
           // Destroy the zip
           zipFile.delete
           s.log.info("Complete")
-      } 
+      }
   }
 
   private def jmonkeyCacheTask = 
@@ -151,7 +150,7 @@ object JMonkeyProject extends Plugin {
           val common = baselib * "*.jar" ---
             (exclude) +++ commonJar +++
             (base / "opt" / "native-bullet" * "%s-bullet.jar".format(bv))
-      
+
           // Different jMonkey jars for platform 
           val desktop = baselib / "%s-desktop.jar".format(bv)
           val android = base / "opt" / "android" * "*-android.jar"
@@ -238,7 +237,7 @@ object JMonkeyProject extends Plugin {
     ivyHome.getOrElse (Path.userHome / ".ivy2") / "local" / "org.jmonkeyengine"
 
   private def createIfNotExists(d: File) = 
-    if(!d.exists) IO.createDirectory(d)
+    if (!d.exists) IO.createDirectory(d)
 
   lazy val baseSettings: Seq[Setting[_]] = Seq (
       baseRepo := "http://jmonkeyengine.com/nightly",
@@ -277,15 +276,15 @@ object JMonkeyProject extends Plugin {
         IO.delete(jmonkeyParentBaseDir(ivys.ivyHome))
       },
 
-      update <<= update dependsOn install, 
+      update <<= update dependsOn install,
 
       cleanFiles <+= downloadDir,
 
       // Create these dependecies for you 
       libraryDependencies <++= (targetPlatform, baseVersion, targetVersion) { 
-        (platform, bv, tv) => Seq ( 
+        (platform, bv, tv) => Seq (
           "org.jmonkeyengine" % "jmonkeyengine-%s".format(platform) % jmd(bv, tv) 
-        ) 
+        )
       }
   )
 

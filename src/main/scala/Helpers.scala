@@ -1,6 +1,7 @@
 import sbt._
 
 import xml.Elem
+import scala.language.implicitConversions
 
 object Helpers {
 

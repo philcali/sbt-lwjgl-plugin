@@ -4,8 +4,8 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 import Keys._
-import Project.Initialize
 import util.Properties
+import scala.language.postfixOps
 
 object LWJGLPlugin extends Plugin {
   import lwjgl._
@@ -47,7 +47,7 @@ object LWJGLPlugin extends Plugin {
   }
 
   // Define Tasks
-  private def lwjglCopyTask: Initialize[Task[Seq[File]]] = 
+  private def lwjglCopyTask: Def.Initialize[Task[Seq[File]]] =
     (streams, copyDir, org, nativesName, nativesJarName, os, ivyPaths) map { 
       (s, dir, org, nativesName, jarName, dos, ivys) =>
       val (tos, ext) = dos
@@ -158,7 +158,7 @@ object LWJGLPlugin extends Plugin {
   )
 
   lazy val runSettings: Seq[Setting[_]] = Seq (
-    lwjgl.version := "2.8.5",
+    lwjgl.version := "2.9.0",
 
     lwjgl.nativesName := "lwjgl-platform",
 

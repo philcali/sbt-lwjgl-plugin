@@ -6,7 +6,7 @@ import io.Source
 /**
  * Slick dependencies
  */
-object Slick2D extends Plugin {
+object Slick2D {
 
   object slick {
     val version = SettingKey[String]("slick-version")

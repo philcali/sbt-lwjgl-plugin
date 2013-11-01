@@ -2,7 +2,7 @@ import sbt._
 
 import Keys._
 
-object Ardor3D extends Plugin {
+object Ardor3D {
 
   object ardor {
     val version = SettingKey[String]("ardor-version")

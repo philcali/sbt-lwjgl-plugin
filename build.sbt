@@ -1,14 +1,14 @@
 sbtPlugin := true
 
-scalacOptions += "-deprecation"
+scalacOptions ++= Seq("-feature", "-deprecation")
 
 name := "sbt-lwjgl-plugin"
 
 organization := "com.github.philcali"
 
-version := "3.1.4"
+version := "3.1.5"
 
-libraryDependencies += "net.databinder" %% "dispatch-http" % "0.8.8"
+libraryDependencies += "net.databinder.dispatch" %% "dispatch-core" % "0.11.0"
 
 publishTo <<= version { v =>
   val nexus = "https://oss.sonatype.org/"
