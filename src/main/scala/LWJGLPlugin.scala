@@ -110,7 +110,7 @@ object LWJGLPlugin extends Plugin {
   // Helper methods 
   def defineOs = System.getProperty("os.name").toLowerCase.take(3).toString match {
     case "lin" => ("linux", "so")
-    case "mac" | "dar" => ("macosx", "lib")
+    case "mac" | "dar" => ("osx", "lib")
     case "win" => ("windows", "dll")
     case "sun" => ("solaris", "so")
     case _ => ("unknown", "")
