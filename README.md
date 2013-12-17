@@ -4,6 +4,9 @@ This is a simple plugin for sbt specifically for [LWJGL] projects. The idea was 
 
 Please visit the [wiki] for more info, roadmap, etc.
 
+Currently SBT version 0.13 is not supported. You may have to force a lower version of SBT for your project by creating `project/build.properties`
+with something like `sbt.version=0.12.4`
+
 ## Usage
 
 In your project, create a project/plugins/build.sbt, whose contents are as follows:
