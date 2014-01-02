@@ -60,6 +60,7 @@ object LWJGLPlugin extends Plugin {
       s.log.info("Copying files for %s%s" format(tos, endness))
 
       val target = dir / tos
+      s.log.debug("Target directory: %s" format target)
 
       if (target.exists) {
         s.log.info("Skipping because of existence: %s" format(target))
@@ -68,7 +69,9 @@ object LWJGLPlugin extends Plugin {
         val nativeLocation = pullNativeJar(org, nativesName, jarName, ivys.ivyHome)
 
         if (nativeLocation.exists) {
-          val filter = new SimpleFilter(_.endsWith(".%s" format(ext)))
+          s.log.debug("Natives found at %s" format nativeLocation)
+          val filter = new SimpleFilter(_.endsWith(ext))
+          s.log.debug("Unzipping files ending with %s" format ext)
 
           IO.unzip(nativeLocation, target.asFile, filter)
 
