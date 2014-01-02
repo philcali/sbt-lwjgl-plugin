@@ -4,7 +4,7 @@ import java.util.regex.Pattern
 import java.io.{ FileNotFoundException, FileOutputStream }
 
 import Keys._
-import util.Properties
+import scala.util.Properties
 import scala.language.postfixOps
 
 object LWJGLPlugin extends Plugin {
