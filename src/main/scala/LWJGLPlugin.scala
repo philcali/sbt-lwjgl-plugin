@@ -135,12 +135,17 @@ object LWJGLPlugin extends Plugin {
     }
   }
 
+  private def major(v: String): Int = v.split("\\.")(0) toInt
+
   lazy val lwjglSettings: Seq[Setting[_]] = baseSettings ++ runSettings
 
   lazy val baseSettings: Seq[Setting[_]] = Seq (
     lwjgl.includePlatform := true,
 
-    lwjgl.org := "org.lwjgl.lwjgl",
+    // The group ID changed at version 3
+    lwjgl.org <<= (lwjgl.version) {
+      v => if (major(v) <= 2) "org.lwjgl.lwjgl" else "org.lwjgl"
+    },
 
     lwjgl.utilsName := "lwjgl_util",
 
@@ -150,13 +155,18 @@ object LWJGLPlugin extends Plugin {
     manifestNatives <<= manifestNatives dependsOn update,
 
     libraryDependencies <++=
-      (lwjgl.version, lwjgl.org, lwjgl.utilsName, lwjgl.os, lwjgl.includePlatform) { 
-        (v, org, utils, os, isNew) => 
-        val deps = Seq(org % "lwjgl" % v, org % utils % v)
+      (lwjgl.version, lwjgl.org, lwjgl.utilsName, lwjgl.os, lwjgl.includePlatform) {
+        (v, org, utils, os, isNew) =>
+          val deps = Seq(org % "lwjgl" % v)
 
-        if (isNew) 
-          deps ++ Seq(org % "lwjgl-platform" % v classifier "natives-" + (os._1))
-        else deps
+          // Version 2 includes a util artifact.
+          if (major(v) <= 2)
+            deps ++ Seq(org % utils % v)
+
+          if (isNew)
+            deps ++ Seq(org % "lwjgl-platform" % v classifier "natives-" + (os._1))
+
+          deps
       }
   )
 
