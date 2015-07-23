@@ -160,13 +160,17 @@ object LWJGLPlugin extends Plugin {
           val deps = Seq(org % "lwjgl" % v)
 
           // Version 2 includes a util artifact.
-          if (major(v) <= 2)
-            deps ++ Seq(org % utils % v)
+          val utilsDeps = if (major(v) <= 2)
+            Seq(org % utils % v)
+          else
+            Nil
 
-          if (isNew)
-            deps ++ Seq(org % "lwjgl-platform" % v classifier "natives-" + (os._1))
+          val nativeDeps = if (isNew)
+            Seq(org % "lwjgl-platform" % v classifier "natives-" + (os._1))
+          else
+            Nil
 
-          deps
+          deps ++ utilsDeps ++ nativeDeps
       }
   )
 
